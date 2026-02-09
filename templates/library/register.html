@@ -1,0 +1,115 @@
+{% extends 'library/base.html' %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="card-header bg-primary text-white p-4 text-center border-0" 
+                     style="background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);">
+                    <h3 class="fw-bold mb-1">إنشاء حساب جديد</h3>
+                    <p class="mb-0 opacity-75">انضم إلينا واستمتع بخدمات المكتبة الذكية</p>
+                </div>
+
+                <div class="card-body p-5 bg-white">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger rounded-3 mb-4">
+                                {% for error in form.non_field_errors %}
+                                    <p class="mb-0"><i class="bi bi-exclamation-circle me-2"></i>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <h6 class="fw-bold text-muted mb-3 border-bottom pb-2">المعلومات الشخصية</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">الاسم الأول</label>
+                                {{ form.first_name }} </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">اسم العائلة</label>
+                                {{ form.last_name }}
+                            </div>
+                        </div>
+
+                        <h6 class="fw-bold text-muted mb-3 border-bottom pb-2 mt-4">البيانات الأكاديمية</h6>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">اسم المستخدم (للدخول)</label>
+                            {{ form.username }}
+                            <div class="form-text text-muted small">يجب أن يكون بالإنجليزية وبدون مسافات.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">البريد الإلكتروني</label>
+                            {{ form.email }}
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">الرقم الجامعي</label>
+                                {{ form.student_id }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">التخصص الدراسي</label>
+                                {{ form.major }} </div>
+                        </div>
+
+                        <h6 class="fw-bold text-muted mb-3 border-bottom pb-2 mt-4">كلمة المرور</h6>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small">كلمة المرور</label>
+                            {{ form.password }}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small text-primary">تأكيد كلمة المرور</label>
+                            {{ form.confirm_password }} {% if form.confirm_password.errors %}
+                                <div class="text-danger small mt-1">
+                                    {{ form.confirm_password.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary py-3 rounded-pill fw-bold shadow-sm hover-up">
+                                <i class="bi bi-person-plus-fill me-2"></i> إنشاء الحساب
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card-footer bg-light p-4 text-center border-0">
+                    <p class="mb-0 text-muted">لديك حساب بالفعل؟ <a href="{% url 'library:login' %}" class="fw-bold text-primary text-decoration-none">تسجيل الدخول</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // كود جافاسكربت بسيط لإضافة كلاسات البوتستراب لحقول النموذج تلقائياً
+    document.addEventListener("DOMContentLoaded", function() {
+        var inputs = document.querySelectorAll('input, select');
+        inputs.forEach(function(input) {
+            if (!input.classList.contains('form-control') && !input.classList.contains('form-select')) {
+                if (input.tagName === 'SELECT') {
+                    input.classList.add('form-select'); // للقوائم المنسدلة
+                } else {
+                    input.classList.add('form-control'); // لحقول النص
+                }
+                input.classList.add('py-2');
+                input.classList.add('bg-light');
+                input.classList.add('border-0'); // ستايل حديث
+            }
+        });
+    });
+</script>
+
+<style>
+    .hover-up:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(13, 110, 253, 0.2) !important;
+    }
+</style>
+{% endblock %}

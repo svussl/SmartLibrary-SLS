@@ -1,0 +1,156 @@
+{% extends 'library/base.html' %}
+
+{% block content %}
+<div class="container my-5">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">لوحة تحكم التحليلات (Analytics Dashboard)</h2>
+            <p class="text-muted">نظرة شاملة على أداء المكتبة وسلوك الطلاب</p>
+        </div>
+        <span class="badge bg-primary fs-6 px-3 py-2 rounded-pill">Admin Only</span>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white border-start border-4 border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="text-muted mb-0">إجمالي الكتب</h6>
+                        <div class="bg-primary bg-opacity-10 p-2 rounded-circle text-primary">
+                            <i class="bi bi-book fs-4"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-0">{{ total_books }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-white border-start border-4 border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="text-muted mb-0">إعارات نشطة</h6>
+                        <div class="bg-success bg-opacity-10 p-2 rounded-circle text-success">
+                            <i class="bi bi-person-check fs-4"></i>
+                        </div>
+                    </div>
+                    <h3 class="fw-bold mb-0">{{ active_loans_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100 bg-info text-white" style="background: linear-gradient(135deg, #0dcaf0 0%, #0aa2c0 100%);">
+                <div class="card-body d-flex align-items-center justify-content-between">
+                    <div>
+                        <h5 class="fw-bold mb-1"><i class="bi bi-stopwatch me-2"></i> متوسط مدة القراءة</h5>
+                        <p class="mb-0 opacity-75 small">تحليل الفترة الزمنية لبقاء الكتاب عند الطالب (Retention Rate)</p>
+                    </div>
+                    <div class="text-end">
+                        {% if avg_borrow_days > 0 %}
+                            <h2 class="fw-bold mb-0">{{ avg_borrow_days }} <span class="fs-6 fw-normal">أيام</span></h2>
+                            <span class="badge bg-white text-info mt-2">معدل الدوران</span>
+                        {% else %}
+                            <span class="badge bg-white text-info">جاري جمع البيانات...</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0 text-success"><i class="bi bi-graph-up-arrow me-2"></i> الأكثر استعارة</h5>
+                </div>
+                <div class="card-body p-0">
+                    <p class="text-muted small px-3 mb-3">الكتب التي حققت أعلى معدل دوران (High Turnover) في المكتبة:</p>
+                    
+                    <ul class="list-group list-group-flush">
+                        {% for book in most_borrowed %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-3 py-3 border-0 border-bottom">
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-light text-dark rounded-pill me-3 border px-2">#{{ forloop.counter }}</span>
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-dark">{{ book.title }}</h6>
+                                    <small class="text-muted">{{ book.category }}</small>
+                                </div>
+                            </div>
+                            <span class="badge bg-success rounded-pill px-3">
+                                {{ book.c }} إعارة
+                            </span>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-center py-4 text-muted">
+                            لا توجد بيانات كافية بعد.
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card-footer bg-light border-0 text-center py-3">
+                    <small class="text-muted">يساعد هذا المؤشر في تحديد الكتب التي تحتاج لنسخ إضافية.</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-danger text-white py-3 border-0">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-exclamation-triangle me-2"></i> تحليل الفجوة (Gap Analysis)</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">المواضيع التي بحث عنها الطلاب ولم يجدوا نتائج (Demand > Supply):</p>
+                    
+                    {% if gap_analysis %}
+                        <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-4">
+                            <i class="bi bi-lightbulb fs-2 me-3 text-warning"></i>
+                            <div>
+                                <strong>توصية النظام:</strong> يرجى شراء مراجع في هذه المواضيع فوراً.
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>كلمة البحث المفقودة</th>
+                                        <th class="text-center">عدد المحاولات</th>
+                                        <th>الإجراء</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in gap_analysis %}
+                                    <tr>
+                                        <td class="fw-bold text-danger">{{ log.query_text }}</td>
+                                        <td class="text-center"><span class="badge bg-secondary rounded-pill">{{ log.c }}</span></td>
+                                        <td>
+                                            <a href="https://www.google.com/search?q=books+about+{{ log.query_text }}" target="_blank" class="btn btn-sm btn-outline-dark rounded-pill">
+                                                <i class="bi bi-cart-plus me-1"></i> بحث للشراء
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <div class="mb-3 text-success">
+                                <i class="bi bi-check-circle-fill fs-1"></i>
+                            </div>
+                            <h5 class="fw-bold text-success">ممتاز!</h5>
+                            <p class="text-muted">المخزون يغطي كافة طلبات البحث حالياً.</p>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-light border-0 text-center py-3">
+                    <small class="text-muted">هذا التقرير يدعم اتخاذ القرار في عمليات الشراء والتزويد.</small>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends 'library/base.html' %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <!-- الفلتر الجانبي -->
+        <div class="col-lg-3 mb-4">
+            <div class="card border-0 shadow-sm sticky-top" style="top: 100px;">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-4"><i class="bi bi-sliders me-2"></i>تصفية النتائج</h5>
+                    
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-muted text-uppercase">ترتيب حسب</label>
+                        <select class="form-select border-0 bg-light rounded-3">
+                            <option>الأكثر صلة (AI)</option>
+                            <option>الأحدث</option>
+                            <option>الأكثر شيوعاً</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-muted text-uppercase">نوع المصدر</label>
+                        <div class="d-flex flex-column gap-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" checked>
+                                <label class="form-check-label small">كتب مطبوعة</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" checked>
+                                <label class="form-check-label small">كتب إلكترونية (E-Book)</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- نتائج البحث -->
+        <div class="col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold mb-0">نتائج البحث عن: "<span class="text-primary">{{ query }}</span>"</h4>
+                <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">{{ books|length }} نتيجة</span>
+            </div>
+
+            {% if books %}
+                <div class="d-flex flex-column gap-3">
+                    {% for book in books %}
+                    <div class="card border-0 shadow-sm hover-shadow transition-all overflow-hidden">
+                        <div class="row g-0">
+                            <!-- صورة الغلاف -->
+                            <div class="col-md-2 position-relative" style="min-height: 160px;">
+                                {% if book.cover_image_url %}
+                                    <img src="{{ book.cover_image_url }}" class="w-100 h-100 object-fit-cover" alt="{{ book.title }}">
+                                {% else %}
+                                    <div class="w-100 h-100 bg-light d-flex align-items-center justify-content-center text-muted">
+                                        <i class="bi bi-book fs-1 opacity-25"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- تفاصيل الكتاب -->
+                            <div class="col-md-10">
+                                <div class="card-body h-100 d-flex flex-column justify-content-between py-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <div class="mb-1">
+                                                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill small mb-2">{{ book.get_category_display }}</span>
+                                            </div>
+                                            <h5 class="card-title fw-bold mb-1">
+                                                <a href="{% url 'library:book_detail' book.id %}" class="text-decoration-none text-dark stretched-link">
+                                                    {{ book.title }}
+                                                </a>
+                                            </h5>
+                                            <p class="card-text text-muted small mb-2">{{ book.author }}</p>
+                                            <p class="card-text text-muted small text-truncate" style="max-width: 500px;">
+                                                {{ book.description|truncatewords:20 }}
+                                            </p>
+                                        </div>
+                                        
+                                        <!-- مؤشر نسبة التطابق (AI Score) -->
+                                        {% if book.match_score %}
+                                        <div class="text-center ms-3" style="z-index: 2;">
+                                            <div class="position-relative d-inline-flex align-items-center justify-content-center">
+                                                <svg width="50" height="50" viewBox="0 0 36 36">
+                                                    <path class="text-light" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3" />
+                                                    <path class="text-success" stroke-dasharray="{{ book.match_score|floatformat:0 }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3" />
+                                                </svg>
+                                                <span class="position-absolute small fw-bold text-success">{{ book.match_score|floatformat:0 }}%</span>
+                                            </div>
+                                            <div class="small fw-bold text-muted mt-1" style="font-size: 0.7rem;">نسبة التطابق</div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5 card border-0 border-dashed border-2">
+                    <div class="mb-3">
+                        <div class="bg-light rounded-circle d-inline-flex p-4">
+                            <i class="bi bi-search fs-1 text-muted opacity-50"></i>
+                        </div>
+                    </div>
+                    <h5 class="fw-bold text-muted">لم نعثر على نتائج مطابقة</h5>
+                    <p class="text-muted small">حاول البحث بكلمات مختلفة أو تحقق من الإملاء.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-shadow:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important; }
+    .transition-all { transition: all 0.3s ease; }
+    .border-dashed { border-style: dashed !important; }
+</style>
+{% endblock %}
