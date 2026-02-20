@@ -12,6 +12,7 @@
     </div>
 
     <div class="row g-4 mb-5">
+        <!-- كرت إجمالي الكتب -->
         <div class="col-md-6 col-lg-3">
             <div class="card border-0 shadow-sm rounded-4 h-100 bg-white border-start border-4 border-primary">
                 <div class="card-body">
@@ -25,6 +26,8 @@
                 </div>
             </div>
         </div>
+
+        <!-- كرت الإعارات النشطة -->
         <div class="col-md-6 col-lg-3">
             <div class="card border-0 shadow-sm rounded-4 h-100 bg-white border-start border-4 border-success">
                 <div class="card-body">
@@ -38,6 +41,8 @@
                 </div>
             </div>
         </div>
+
+        <!-- كرت متوسط مدة القراءة -->
         <div class="col-md-6 col-lg-6">
             <div class="card border-0 shadow-sm rounded-4 h-100 bg-info text-white" style="background: linear-gradient(135deg, #0dcaf0 0%, #0aa2c0 100%);">
                 <div class="card-body d-flex align-items-center justify-content-between">
@@ -60,6 +65,7 @@
 
     <div class="row g-4">
         
+        <!-- قائمة الكتب الأكثر استعارة -->
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm rounded-4 h-100">
                 <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
@@ -74,12 +80,13 @@
                             <div class="d-flex align-items-center">
                                 <span class="badge bg-light text-dark rounded-pill me-3 border px-2">#{{ forloop.counter }}</span>
                                 <div>
+                                    <!-- الآن ستظهر الأسماء لأننا مررنا كائن الكتاب كاملاً -->
                                     <h6 class="fw-bold mb-0 text-dark">{{ book.title }}</h6>
-                                    <small class="text-muted">{{ book.category }}</small>
+                                    <small class="text-muted">{{ book.get_category_display }}</small>
                                 </div>
                             </div>
                             <span class="badge bg-success rounded-pill px-3">
-                                {{ book.c }} إعارة
+                                {{ book.borrow_count }} إعارة
                             </span>
                         </li>
                         {% empty %}
@@ -95,6 +102,7 @@
             </div>
         </div>
 
+        <!-- تحليل الفجوات (Gap Analysis) -->
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm rounded-4 h-100">
                 <div class="card-header bg-danger text-white py-3 border-0">
@@ -124,7 +132,7 @@
                                     {% for log in gap_analysis %}
                                     <tr>
                                         <td class="fw-bold text-danger">{{ log.query_text }}</td>
-                                        <td class="text-center"><span class="badge bg-secondary rounded-pill">{{ log.c }}</span></td>
+                                        <td class="text-center"><span class="badge bg-secondary rounded-pill">{{ log.search_count }}</span></td>
                                         <td>
                                             <a href="https://www.google.com/search?q=books+about+{{ log.query_text }}" target="_blank" class="btn btn-sm btn-outline-dark rounded-pill">
                                                 <i class="bi bi-cart-plus me-1"></i> بحث للشراء

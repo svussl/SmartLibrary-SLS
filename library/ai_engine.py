@@ -37,8 +37,8 @@ class SmartLibraryAI:
 
     def update_book_embedding(self, book):
         """تحديث بصمة كتاب واحد"""
-        # ندمج النصوص العربية والإنجليزية (الآن مدمجة بشكل أفضل لزيادة دقة الفهم الدلالي)
-        full_text = f"العنوان: {book.title}. التصنيف: {book.get_category_display()}. الوصف: {book.description}. الوسوم: {book.tags}."
+        # ندمج النصوص العربية والإنجليزية
+        full_text = f"{book.title}. {book.category}. {book.description}. {book.tags}"
         book.embedding = self.generate_embedding(full_text)
         book.save()
         print(f"✅ Updated multilingual embedding for: {book.title}")
@@ -63,7 +63,6 @@ class SmartLibraryAI:
 
         top_results = []
         for idx, score in enumerate(cos_scores):
-            # رفع عتبة البحث الدلالي لمنع النتائج العشوائية
             if score > 0.35: 
                 top_results.append((score.item(), book_ids[idx]))
                 print(f"   -> Found Match: Book ID {book_ids[idx]} (Score: {score:.2f})")
@@ -99,7 +98,6 @@ class SmartLibraryAI:
 
             top_results = []
             for idx, score in enumerate(cos_scores):
-                # رفع عتبة التوصية لضمان دقة الكتب المشابهة
                 if score > 0.50: 
                     top_results.append((score.item(), book_ids[idx]))
 
@@ -114,11 +112,6 @@ class SmartLibraryAI:
             return []
 
     def recommend_by_profile(self, profile_text, top_k=8):
-        """اقتراح كتب بناءً على تخصص الطالب مع تحسين السياق الدلالي"""
-        print(f"🎓 Recommending based on profile: {profile_text}")
-        
-        # إضافة سياق للنص لجعل البحث الدلالي أكثر دقة
+        """اقتراح كتب بناءً على تخصص الطالب"""
         enhanced_query = f"كتب ومراجع علمية في تخصص {profile_text}"
-        
-        # نمرر الاستعلام المحسن لدالة البحث
         return self.semantic_search(enhanced_query, top_k=top_k)

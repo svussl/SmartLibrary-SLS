@@ -2,7 +2,6 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
-import requests
 
 # ==========================================
 # 1. جدول الكتب (Library Books)
@@ -50,49 +49,18 @@ class Book(models.Model):
     available_copies = models.IntegerField(default=1, verbose_name="النسخ المتاحة")
     tags = models.CharField(max_length=200, blank=True, verbose_name="وسوم")
     
-    # === الحقل الجديد للذكاء الاصطناعي ===
-    # نستخدم JSONField لتخزين مصفوفة الأرقام (Vector) الناتجة من AI
+    # === حقل الذكاء الاصطناعي ===
     embedding = models.JSONField(blank=True, null=True, verbose_name="البصمة الرقمية (AI Vector)")
     
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def save(self, *args, **kwargs):
-        """
-        الجلب التلقائي للبيانات من Google Books عند الحفظ
-        """
-        if not self.description:
-            try:
-                query = ""
-                if self.isbn:
-                    query = f"isbn:{self.isbn}"
-                elif self.title:
-                    query = f"intitle:{self.title}"
-                
-                if query:
-                    response = requests.get(f"https://www.googleapis.com/books/v1/volumes?q={query}")
-                    if response.status_code == 200:
-                        data = response.json()
-                        if "items" in data and len(data["items"]) > 0:
-                            book_info = data["items"][0]["volumeInfo"]
-                            self.description = book_info.get("description", "لا يوجد وصف متاح حالياً.")
-                            if not self.cover_image_url and "imageLinks" in book_info:
-                                self.cover_image_url = book_info["imageLinks"].get("thumbnail", "")
-                            categories = book_info.get("categories", [])
-                            if categories:
-                                self.tags = ", ".join(categories)
-            except Exception as e:
-                print(f"Error fetching book info: {e}")
-
-        super().save(*args, **kwargs)
-
     def __str__(self):
-        return self.title
+        return f"{self.title} | {self.author}"
 
 # ==========================================
 # 2. ملف الطالب (Student Profile)
 # ==========================================
 class StudentProfile(models.Model):
-    # --- هذه القائمة هي ما يبحث عنه ملف forms.py ---
     MAJOR_CHOICES = [
         ('General', 'سنة تحضيرية / عام'),
         ('CS', 'علم الحاسوب (Computer Science)'),
@@ -107,12 +75,10 @@ class StudentProfile(models.Model):
         ('Business', 'إدارة أعمال'),
         ('Law', 'حقوق'),
     ]
-    # ---------------------------------------------
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     student_id = models.CharField(max_length=20, unique=True, verbose_name="الرقم الجامعي")
     
-    # استخدام القائمة هنا
     major = models.CharField(
         max_length=50, 
         choices=MAJOR_CHOICES, 
@@ -123,18 +89,16 @@ class StudentProfile(models.Model):
     interest_fingerprint = models.TextField(blank=True, null=True, verbose_name="بصمة الاهتمامات")
 
     def __str__(self):
-        return f"{self.user.username} ({self.major})"
+        full_name = f"{self.user.first_name} {self.user.last_name}"
+        if not full_name.strip():
+            full_name = self.user.username
+        return f"{full_name} ({self.student_id})"
 
 
 # ==========================================
 # 3. جدول العمليات والإعارة (Transactions)
 # ==========================================
 class Transaction(models.Model):
-    """
-    يسجل حركة الكتب بين المكتبة والطلاب.
-    يتضمن منطقاً ذكياً لتغيير حالة المخزون وتحديد التواريخ تلقائياً.
-    """
-    # حالات الطلب الممكنة
     STATUS_CHOICES = [
         ('pending', 'قيد الانتظار (طلب إلكتروني)'),
         ('active', 'جاري (تم التسليم للطالب)'),
@@ -145,55 +109,47 @@ class Transaction(models.Model):
     book = models.ForeignKey(Book, on_delete=models.CASCADE, verbose_name="الكتاب")
     student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, verbose_name="الطالب")
     
-    # التواريخ
     request_date = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الطلب")
     borrow_date = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الاستلام الفعلي")
     due_date = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الاستحقاق")
     return_date = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الإرجاع")
     
-    # حالة الطلب
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="حالة الطلب")
-    
-    # تقييم الطالب (لتحسين التوصيات مستقبلاً)
     user_rating = models.IntegerField(null=True, blank=True, verbose_name="التقييم (1-5)")
 
     def save(self, *args, **kwargs):
-        """
-        تجاوز دالة الحفظ لتطبيق المنطق التلقائي (Business Logic Automation).
-        """
-        # الحالة 1: الموافقة على الطلب وتسليم الكتاب (تحول من أي حالة إلى Active)
-        # نتأكد أننا لم نحدد تاريخ الإعارة مسبقاً لمنع الخصم المزدوج
-        if self.status == 'active' and not self.borrow_date:
-            self.borrow_date = timezone.now()
-            # مدة الإعارة الافتراضية 14 يوماً
-            self.due_date = timezone.now() + timedelta(days=14)
+        # Business Logic for dates and inventory
+        if self.status == 'active':
+            if not self.borrow_date:
+                self.borrow_date = timezone.now()
+            if not self.due_date:
+                self.due_date = timezone.now() + timedelta(days=14)
             
-            # خصم نسخة من المخزون
-            if self.book.available_copies > 0:
-                self.book.available_copies -= 1
-                self.book.save()
+            if self.pk:
+                old_instance = Transaction.objects.get(pk=self.pk)
+                if old_instance.status != 'active' and self.book.available_copies > 0:
+                    self.book.available_copies -= 1
+                    self.book.save()
+            else:
+                if self.book.available_copies > 0:
+                    self.book.available_copies -= 1
+                    self.book.save()
             
-        # الحالة 2: إرجاع الكتاب (تحول إلى Returned)
-        # نتأكد أننا لم نحدد تاريخ الإرجاع مسبقاً
         if self.status == 'returned' and not self.return_date:
             self.return_date = timezone.now()
-            
-            # إعادة النسخة للمخزون
             self.book.available_copies += 1
             self.book.save()
             
-        # حفظ التغييرات
         super().save(*args, **kwargs)
 
     @property
     def is_overdue(self):
-        """خاصية لمعرفة هل الكتاب متأخر عن موعده"""
         if self.status == 'active' and self.due_date and timezone.now() > self.due_date:
             return True
         return False
 
     def __str__(self):
-        return f"{self.book.title} - {self.student.user.username} ({self.get_status_display()})"
+        return f"{self.book.title} - {self.student.student_id}"
 
     class Meta:
         verbose_name = "عملية إعارة"
@@ -209,7 +165,6 @@ class SearchLog(models.Model):
     query_text = models.CharField(max_length=255, verbose_name="نص البحث")
     timestamp = models.DateTimeField(auto_now_add=True)
     result_count = models.IntegerField(default=0, verbose_name="عدد النتائج")
-        
     clicked_result = models.BooleanField(default=False)
 
     class Meta:

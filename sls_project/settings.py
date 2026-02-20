@@ -1,22 +1,16 @@
 import os
 from pathlib import Path
-from dotenv import load_dotenv # تمت الإضافة هنا لتحميل متغيرات البيئة
 
 # المسار الأساسي للمشروع
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# تحميل متغيرات البيئة من ملف .env
-load_dotenv(os.path.join(BASE_DIR, '.env'))
+# إعدادات الأمان (يجب تغيير مفتاح السر في بيئة الإنتاج)
+SECRET_KEY = 'django-insecure-smart-library-system-key-replace-this'
 
-# إعدادات الأمان
-# نستخدم المتغير من البيئة، ونضع قيمة افتراضية للتطوير فقط في حال عدم وجود الملف
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-smart-library-system-key-replace-this')
+# وضع التصحيح (Debug) - تفعيله أثناء التطوير فقط
+DEBUG = True
 
-# وضع التصحيح (Debug) - نقرؤه من البيئة ليكون False في الإنتاج
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
-
-# السماح لجميع المضيفين في وضع التطوير، وتحديد المضيف في الإنتاج
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = []
 
 # التطبيقات المثبتة
 INSTALLED_APPS = [
@@ -99,3 +93,12 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+
+AUTHENTICATION_BACKENDS = [
+    # 1. الأولوية للبحث عن طريق الرقم الجامعي (للطلاب)
+    'library.backends.StudentIDBackend',
+    
+    # 2. ثم البحث عن طريق اسم المستخدم العادي (للمشرفين Admin)
+    'django.contrib.auth.backends.ModelBackend',
+]

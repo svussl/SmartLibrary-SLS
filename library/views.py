@@ -5,11 +5,10 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField, Q
 from django.utils import timezone
-from django.db import transaction # تمت الإضافة هنا لحماية قاعدة البيانات
 from .models import Book, SearchLog, Transaction, StudentProfile
 from .ai_engine import SmartLibraryAI
-from .forms import UserRegistrationForm
-
+from .forms import UserRegistrationForm, StudentLoginForm
+from django.db import transaction
 
 # ==========================================
 # دالة مساعدة لفحص الصلاحيات (Admin Check)
@@ -38,7 +37,7 @@ def register(request):
                 major=form.cleaned_data['major']
             )
             
-            login(request, user)
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             messages.success(request, f"مرحباً بك {user.first_name}! تم إنشاء حسابك بنجاح.")
             return redirect('library:home')
     else:
@@ -51,21 +50,17 @@ def login_view(request):
         return redirect('library:home')
 
     if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
+        # استخدام StudentLoginForm بدلاً من الفورم الافتراضي
+        form = StudentLoginForm(request, data=request.POST)
         if form.is_valid():
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password')
-            user = authenticate(username=username, password=password)
-            if user is not None:
-                login(request, user)
-                messages.info(request, f"أهلاً بعودتك، {user.first_name}!")
-                return redirect('library:home')
-            else:
-                messages.error(request, "اسم المستخدم أو كلمة المرور غير صحيحة.")
+            user = form.get_user()
+            login(request, user)
+            messages.success(request, f"أهلاً بعودتك، {user.first_name}!")
+            return redirect('library:home')
         else:
-            messages.error(request, "الرجاء التحقق من البيانات المدخلة.")
+            messages.error(request, "الرقم الجامعي أو كلمة المرور غير صحيحة.")
     else:
-        form = AuthenticationForm()
+        form = StudentLoginForm()
     
     return render(request, 'library/login.html', {'form': form})
 
@@ -87,19 +82,16 @@ def home(request):
         profile = request.user.studentprofile
         ai_engine = SmartLibraryAI()
 
-        # أ) محاولة جلب توصيات بناءً على آخر استعارة
         last_loan = Transaction.objects.filter(student=profile).last()
         
         if last_loan:
             books = ai_engine.get_recommendations(last_loan.book.id, top_k=8)
         
-        # ب) إذا لم يستعر شيئاً، نجلب كتباً بناءً على تخصصه
         if not books:
             major_text = profile.get_major_display()
             if major_text != 'General':
                 books = ai_engine.recommend_by_profile(major_text, top_k=8)
 
-    # ج) إذا لم توجد توصيات، نعرض أحدث الكتب
     if not books:
         books = Book.objects.all().order_by('-created_at')[:8]
 
@@ -107,18 +99,65 @@ def home(request):
 
 @login_required
 def search_view(request):
+    """
+    واجهة البحث الدلالي مع دعم خيارات الترتيب (Sorting) والفلترة (Filtering)
+    """
     query = request.GET.get('q', '')
+    sort_option = request.GET.get('sort', 'relevance')
+    
+    # استقبال خيارات الفلترة (القائمة المختارة)
+    # إذا لم يختر المستخدم شيئاً (أول زيارة)، نفترض أنه يريد الكتب المطبوعة
+    selected_types = request.GET.getlist('book_type')
+    if not request.GET and not selected_types:
+        selected_types = ['printed'] # الافتراضي
+
     books = []
     
     if query:
         ai_engine = SmartLibraryAI()
+        # 1. البحث الدلالي باستخدام AI
         books = ai_engine.semantic_search(query)
         
-        # تسجيل العملية
-        user = request.user if request.user.is_authenticated else None
-        SearchLog.objects.create(user=user, query_text=query, result_count=len(books))
+        # 2. تطبيق فلتر نوع المصدر (Source Type Filter)
+        # ملاحظة: بما أن قاعدة البيانات الحالية لا تحوي حقل is_ebook
+        # سنعتبر أن جميع الكتب الحالية هي "كتب مطبوعة" (Printed)
+        filtered_books = []
+        if books:
+            for book in books:
+                # منطق الفلترة:
+                # إذا اختار المستخدم "printed" -> نعرض الكتب (لأنها كلها مطبوعة حالياً)
+                # إذا اختار المستخدم "ebook" فقط -> لن نعرض شيئاً (لأنه لا يوجد حقل ebook)
+                # يمكنك مستقبلاً إضافة حقل book.is_ebook في المودل وتعديل الشرط هنا
+                
+                is_printed_book = True # فرضية حالية
+                is_ebook_book = False  # فرضية حالية
 
-    return render(request, 'library/search.html', {'books': books, 'query': query})
+                if 'printed' in selected_types and is_printed_book:
+                    filtered_books.append(book)
+                elif 'ebook' in selected_types and is_ebook_book:
+                    filtered_books.append(book)
+            
+            books = filtered_books
+
+        # 3. منطق الترتيب (Sorting Logic)
+        if books:
+            if sort_option == 'newest':
+                books.sort(key=lambda x: x.created_at, reverse=True)
+            elif sort_option == 'popular':
+                books.sort(key=lambda x: x.transaction_set.count(), reverse=True)
+
+        # 4. تسجيل عملية البحث (نتأكد أنها عملية بحث وليست مجرد تغيير فلتر)
+        user = request.user if request.user.is_authenticated else None
+        if 'sort' not in request.GET and 'book_type' not in request.GET:
+            SearchLog.objects.create(user=user, query_text=query, result_count=len(books))
+
+    context = {
+        'books': books, 
+        'query': query,
+        'current_sort': sort_option,
+        'selected_types': selected_types, # لإعادة تحديد المربعات في الواجهة
+    }
+    return render(request, 'library/search.html', context)
 
 
 @login_required
@@ -130,13 +169,12 @@ def book_detail(request, book_id):
     similar_titles = ai_engine.get_recommendations(book.id)
     similar_books = similar_titles 
     
-    # التحقق من حالة الاستعارة
     active_transaction = None
     if hasattr(request.user, 'studentprofile'):
         active_transaction = Transaction.objects.filter(
             student=request.user.studentprofile,
             book=book,
-            status__in=['pending', 'active'] 
+            status__in=['pending', 'active']
         ).first()
 
     context = {
@@ -151,7 +189,7 @@ def book_detail(request, book_id):
 # ==========================================
 
 @login_required
-@transaction.atomic # تمت الإضافة هنا لحماية عملية الاستعارة
+@transaction.atomic
 def borrow_request(request, book_id):
     """معالجة طلب استعارة كتاب"""
     book = get_object_or_404(Book, id=book_id)
@@ -161,7 +199,6 @@ def borrow_request(request, book_id):
         messages.error(request, "عذراً، لا توجد نسخ متاحة حالياً.")
         return redirect('library:book_detail', book_id=book.id)
 
-    # التحقق من عدم وجود طلب مسبق 
     existing_loan = Transaction.objects.filter(
         student=student, 
         book=book, 
@@ -204,34 +241,33 @@ def profile_view(request):
 @login_required
 @user_passes_test(is_admin)
 def analytics_dashboard(request):
-    pending_requests = Transaction.objects.filter(status='pending').order_by('request_date')
-    active_loans = Transaction.objects.filter(status='active').order_by('due_date')
+    total_books = Book.objects.count()
+    active_loans_count = Transaction.objects.filter(status='active').count()
     
-    most_borrowed = Transaction.objects.values('book__title') \
-        .annotate(total_borrows=Count('id')) \
-        .order_by('-total_borrows')[:5]
+    most_borrowed = Book.objects.annotate(
+        borrow_count=Count('transaction')
+    ).filter(borrow_count__gt=0).order_by('-borrow_count')[:5]
 
-    avg_duration_data = Transaction.objects.filter(status='returned') \
-        .annotate(duration=ExpressionWrapper(
-            F('return_date') - F('borrow_date'), 
-            output_field=DurationField()
-        )) \
-        .values('book__title') \
-        .annotate(avg_days=Avg('duration')) \
-        .order_by('-avg_days')[:5]
+    avg_reading_data = Transaction.objects.filter(status='returned').aggregate(
+        avg_diff=Avg(F('return_date') - F('borrow_date'))
+    )
+    
+    avg_borrow_days = 0
+    if avg_reading_data['avg_diff']:
+        avg_borrow_days = avg_reading_data['avg_diff'].days
 
-    gap_analysis = SearchLog.objects.filter(result_count=0) \
-        .values('query_text') \
-        .annotate(attempts=Count('id')) \
-        .order_by('-attempts')[:5]
+    gap_analysis = SearchLog.objects.filter(result_count=0).values('query_text').annotate(
+        search_count=Count('query_text')
+    ).order_by('-search_count')[:5]
 
     context = {
-        'pending_requests': pending_requests,
-        'active_loans': active_loans,
+        'total_books': total_books,
+        'active_loans_count': active_loans_count,
         'most_borrowed': most_borrowed,
-        'avg_duration_data': avg_duration_data,
+        'avg_borrow_days': avg_borrow_days,
         'gap_analysis': gap_analysis,
     }
+    
     return render(request, 'library/analytics.html', context)
 
 @login_required
@@ -241,6 +277,9 @@ def manage_transaction(request, transaction_id, action):
     if action == 'approve':
         if trans.book.available_copies > 0:
             trans.status = 'active'
+            trans.book.available_copies -= 1
+            trans.book.save()
+            trans.borrow_date = timezone.now()
             trans.save()
             messages.success(request, f"تمت الموافقة على طلب الطالب.")
         else:
@@ -251,6 +290,9 @@ def manage_transaction(request, transaction_id, action):
         messages.info(request, "تم رفض الطلب.")
     elif action == 'return':
         trans.status = 'returned'
+        trans.return_date = timezone.now()
+        trans.book.available_copies += 1
+        trans.book.save()
         trans.save()
         messages.success(request, "تم تسجيل إرجاع الكتاب بنجاح.")
 

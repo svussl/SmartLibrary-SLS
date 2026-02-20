@@ -3,34 +3,33 @@
 {% block content %}
 <div class="container my-5">
     <div class="row">
-        <!-- الفلتر الجانبي -->
+        
+        <!-- الفلتر الجانبي (Sidebar Filter) -->
         <div class="col-lg-3 mb-4">
             <div class="card border-0 shadow-sm sticky-top" style="top: 100px;">
                 <div class="card-body p-4">
                     <h5 class="fw-bold mb-4"><i class="bi bi-sliders me-2"></i>تصفية النتائج</h5>
                     
-                    <div class="mb-4">
-                        <label class="form-label small fw-bold text-muted text-uppercase">ترتيب حسب</label>
-                        <select class="form-select border-0 bg-light rounded-3">
-                            <option>الأكثر صلة (AI)</option>
-                            <option>الأحدث</option>
-                            <option>الأكثر شيوعاً</option>
-                        </select>
-                    </div>
+                    <!-- نموذج الفلترة (Form) -->
+                    <!-- هذا النموذج يرسل إعدادات الترتيب للسيرفر عند أي تغيير -->
+                    <form method="GET" action="{% url 'library:search' %}" id="filterForm">
+                        
+                        <!-- نحتفظ بكلمة البحث الحالية مخفية لكي لا تضيع عند تغيير الترتيب -->
+                        <input type="hidden" name="q" value="{{ query }}">
 
-                    <div class="mb-4">
-                        <label class="form-label small fw-bold text-muted text-uppercase">نوع المصدر</label>
-                        <div class="d-flex flex-column gap-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" checked>
-                                <label class="form-check-label small">كتب مطبوعة</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" checked>
-                                <label class="form-check-label small">كتب إلكترونية (E-Book)</label>
-                            </div>
+                        <!-- خيارات الترتيب -->
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">ترتيب حسب</label>
+                            <select name="sort" class="form-select border-0 bg-light rounded-3" onchange="this.form.submit()">
+                                <option value="relevance" {% if current_sort == 'relevance' %}selected{% endif %}>الأكثر صلة (AI)</option>
+                                <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>الأحدث إضافة</option>
+                                <option value="popular" {% if current_sort == 'popular' %}selected{% endif %}>الأكثر شيوعاً</option>
+                            </select>
                         </div>
-                    </div>
+
+                        <!-- تمت إزالة قسم نوع المصدر بناءً على طلبك -->
+
+                    </form>
                 </div>
             </div>
         </div>
