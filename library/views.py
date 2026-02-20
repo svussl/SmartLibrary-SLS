@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField, Q
 from django.utils import timezone
+from django.db import transaction # تمت الإضافة هنا لحماية قاعدة البيانات
 from .models import Book, SearchLog, Transaction, StudentProfile
 from .ai_engine import SmartLibraryAI
 from .forms import UserRegistrationForm
@@ -129,13 +130,13 @@ def book_detail(request, book_id):
     similar_titles = ai_engine.get_recommendations(book.id)
     similar_books = similar_titles 
     
-    # التحقق من حالة الاستعارة (تم إصلاح الخطأ هنا) ✅
+    # التحقق من حالة الاستعارة
     active_transaction = None
     if hasattr(request.user, 'studentprofile'):
         active_transaction = Transaction.objects.filter(
             student=request.user.studentprofile,
             book=book,
-            status__in=['pending', 'active'] # استخدام الحقل الصحيح status بدلاً من is_returned
+            status__in=['pending', 'active'] 
         ).first()
 
     context = {
@@ -150,6 +151,7 @@ def book_detail(request, book_id):
 # ==========================================
 
 @login_required
+@transaction.atomic # تمت الإضافة هنا لحماية عملية الاستعارة
 def borrow_request(request, book_id):
     """معالجة طلب استعارة كتاب"""
     book = get_object_or_404(Book, id=book_id)
@@ -159,7 +161,7 @@ def borrow_request(request, book_id):
         messages.error(request, "عذراً، لا توجد نسخ متاحة حالياً.")
         return redirect('library:book_detail', book_id=book.id)
 
-    # التحقق من عدم وجود طلب مسبق (تم إصلاح الخطأ هنا أيضاً) ✅
+    # التحقق من عدم وجود طلب مسبق 
     existing_loan = Transaction.objects.filter(
         student=student, 
         book=book, 
