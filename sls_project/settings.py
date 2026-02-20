@@ -1,16 +1,22 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv # تمت الإضافة هنا لتحميل متغيرات البيئة
 
 # المسار الأساسي للمشروع
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# إعدادات الأمان (يجب تغيير مفتاح السر في بيئة الإنتاج)
-SECRET_KEY = 'django-insecure-smart-library-system-key-replace-this'
+# تحميل متغيرات البيئة من ملف .env
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
-# وضع التصحيح (Debug) - تفعيله أثناء التطوير فقط
-DEBUG = True
+# إعدادات الأمان
+# نستخدم المتغير من البيئة، ونضع قيمة افتراضية للتطوير فقط في حال عدم وجود الملف
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-smart-library-system-key-replace-this')
 
-ALLOWED_HOSTS = []
+# وضع التصحيح (Debug) - نقرؤه من البيئة ليكون False في الإنتاج
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+# السماح لجميع المضيفين في وضع التطوير، وتحديد المضيف في الإنتاج
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 # التطبيقات المثبتة
 INSTALLED_APPS = [
