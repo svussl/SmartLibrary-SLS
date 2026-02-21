@@ -1,14 +1,14 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth import login, logout, authenticate
-from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from django.db.models import Count, Avg, F, ExpressionWrapper, DurationField, Q
+from django.db.models import Count, Avg, F
 from django.utils import timezone
 from .models import Book, SearchLog, Transaction, StudentProfile
 from .ai_engine import SmartLibraryAI
 from .forms import UserRegistrationForm, StudentLoginForm
 from django.db import transaction
+from collections import Counter
 
 # ==========================================
 # دالة مساعدة لفحص الصلاحيات (Admin Check)
@@ -50,7 +50,6 @@ def login_view(request):
         return redirect('library:home')
 
     if request.method == 'POST':
-        # استخدام StudentLoginForm بدلاً من الفورم الافتراضي
         form = StudentLoginForm(request, data=request.POST)
         if form.is_valid():
             user = form.get_user()
@@ -70,19 +69,18 @@ def logout_view(request):
     return redirect('library:login')
 
 # ==========================================
-# 2. الوظائف الرئيسية (Core Features)
+# 2. الوظائف الرئيسية والبحث الذكي
 # ==========================================
 
 @login_required
 def home(request):
-    """الصفحة الرئيسية: تعرض توصيات ذكية بناءً على التخصص أو التاريخ"""
+    """الصفحة الرئيسية: تعرض توصيات ذكية"""
     books = []
+    ai_engine = SmartLibraryAI()
     
     if hasattr(request.user, 'studentprofile'):
         profile = request.user.studentprofile
-        ai_engine = SmartLibraryAI()
-
-        last_loan = Transaction.objects.filter(student=profile).last()
+        last_loan = Transaction.objects.filter(student=profile).order_by('-request_date').first()
         
         if last_loan:
             books = ai_engine.get_recommendations(last_loan.book.id, top_k=8)
@@ -93,89 +91,61 @@ def home(request):
                 books = ai_engine.recommend_by_profile(major_text, top_k=8)
 
     if not books:
-        books = Book.objects.all().order_by('-created_at')[:8]
+        books = Book.objects.all().order_by('-id')[:8]
 
     return render(request, 'library/home.html', {'books': books})
 
 @login_required
 def search_view(request):
-    """
-    واجهة البحث الدلالي مع دعم خيارات الترتيب (Sorting) والفلترة (Filtering)
-    """
     query = request.GET.get('q', '')
     sort_option = request.GET.get('sort', 'relevance')
     
-    # استقبال خيارات الفلترة (القائمة المختارة)
-    # إذا لم يختر المستخدم شيئاً (أول زيارة)، نفترض أنه يريد الكتب المطبوعة
-    selected_types = request.GET.getlist('book_type')
-    if not request.GET and not selected_types:
-        selected_types = ['printed'] # الافتراضي
-
     books = []
     
     if query:
         ai_engine = SmartLibraryAI()
-        # 1. البحث الدلالي باستخدام AI
-        books = ai_engine.semantic_search(query)
+        # جلب الكتب المرتبة دلالياً من المحرك
+        results = ai_engine.semantic_search(query, top_k=20)
         
-        # 2. تطبيق فلتر نوع المصدر (Source Type Filter)
-        # ملاحظة: بما أن قاعدة البيانات الحالية لا تحوي حقل is_ebook
-        # سنعتبر أن جميع الكتب الحالية هي "كتب مطبوعة" (Printed)
-        filtered_books = []
-        if books:
-            for book in books:
-                # منطق الفلترة:
-                # إذا اختار المستخدم "printed" -> نعرض الكتب (لأنها كلها مطبوعة حالياً)
-                # إذا اختار المستخدم "ebook" فقط -> لن نعرض شيئاً (لأنه لا يوجد حقل ebook)
-                # يمكنك مستقبلاً إضافة حقل book.is_ebook في المودل وتعديل الشرط هنا
-                
-                is_printed_book = True # فرضية حالية
-                is_ebook_book = False  # فرضية حالية
+        # تحضير النتائج وإضافة match_score للعرض
+        for i, book in enumerate(results):
+            # إذا لم يزودنا المحرك بـ score، ننشئ واحداً افتراضياً للترتيب
+            if not hasattr(book, 'match_score'):
+                book.match_score = max(100 - (i * 4), 50)
+            books.append(book)
 
-                if 'printed' in selected_types and is_printed_book:
-                    filtered_books.append(book)
-                elif 'ebook' in selected_types and is_ebook_book:
-                    filtered_books.append(book)
-            
-            books = filtered_books
+        # تطبيق خيارات الترتيب الإضافية
+        if sort_option == 'newest':
+            books.sort(key=lambda x: x.id, reverse=True)
+        elif sort_option == 'popular':
+            books.sort(key=lambda x: x.transaction_set.count(), reverse=True)
 
-        # 3. منطق الترتيب (Sorting Logic)
-        if books:
-            if sort_option == 'newest':
-                books.sort(key=lambda x: x.created_at, reverse=True)
-            elif sort_option == 'popular':
-                books.sort(key=lambda x: x.transaction_set.count(), reverse=True)
-
-        # 4. تسجيل عملية البحث (نتأكد أنها عملية بحث وليست مجرد تغيير فلتر)
-        user = request.user if request.user.is_authenticated else None
-        if 'sort' not in request.GET and 'book_type' not in request.GET:
-            SearchLog.objects.create(user=user, query_text=query, result_count=len(books))
+        # تسجيل البحث للتحليلات (فقط عند البحث الفعلي وليس عند تغيير الترتيب فقط)
+        if 'sort' not in request.GET:
+            SearchLog.objects.create(
+                user=request.user, 
+                query_text=query, 
+                result_count=len(books)
+            )
 
     context = {
         'books': books, 
         'query': query,
         'current_sort': sort_option,
-        'selected_types': selected_types, # لإعادة تحديد المربعات في الواجهة
     }
     return render(request, 'library/search.html', context)
 
-
 @login_required
 def book_detail(request, book_id):
-    """صفحة تفاصيل الكتاب مع التوصيات المشابهة"""
     book = get_object_or_404(Book, id=book_id)
-    
     ai_engine = SmartLibraryAI()
-    similar_titles = ai_engine.get_recommendations(book.id)
-    similar_books = similar_titles 
+    similar_books = ai_engine.get_recommendations(book.id, top_k=4)
     
-    active_transaction = None
-    if hasattr(request.user, 'studentprofile'):
-        active_transaction = Transaction.objects.filter(
-            student=request.user.studentprofile,
-            book=book,
-            status__in=['pending', 'active']
-        ).first()
+    active_transaction = Transaction.objects.filter(
+        student__user=request.user,
+        book=book,
+        status__in=['pending', 'active']
+    ).first()
 
     context = {
         'book': book,
@@ -185,39 +155,8 @@ def book_detail(request, book_id):
     return render(request, 'library/detail.html', context)
 
 # ==========================================
-# 3. إدارة العمليات (Transactions)
+# 3. إدارة العمليات والملف الشخصي
 # ==========================================
-
-@login_required
-@transaction.atomic
-def borrow_request(request, book_id):
-    """معالجة طلب استعارة كتاب"""
-    book = get_object_or_404(Book, id=book_id)
-    student = get_object_or_404(StudentProfile, user=request.user)
-
-    if book.available_copies < 1:
-        messages.error(request, "عذراً، لا توجد نسخ متاحة حالياً.")
-        return redirect('library:book_detail', book_id=book.id)
-
-    existing_loan = Transaction.objects.filter(
-        student=student, 
-        book=book, 
-        status__in=['pending', 'active']
-    ).exists()
-
-    if existing_loan:
-        messages.warning(request, "لديك طلب مسبق لهذا الكتاب قيد المعالجة أو لديك الكتاب بالفعل.")
-        return redirect('library:book_detail', book_id=book.id)
-
-    Transaction.objects.create(
-        student=student,
-        book=book,
-        status='pending',
-        request_date=timezone.now()
-    )
-    
-    messages.success(request, "تم إرسال طلب الاستعارة بنجاح!")
-    return redirect('library:profile')
 
 @login_required
 def profile_view(request):
@@ -229,71 +168,85 @@ def profile_view(request):
 
     transactions = Transaction.objects.filter(student=student).order_by('-request_date')
     
+    borrowed_tags = transactions.values_list('book__tags', flat=True)
+    all_tags = []
+    for tags_string in borrowed_tags:
+        if tags_string:
+            all_tags.extend([t.strip() for t in tags_string.split(',') if t.strip()])
+    
+    interest_cloud = [tag for tag, count in Counter(all_tags).most_common(10)]
+
     return render(request, 'library/profile.html', {
         'student': student,
-        'transactions': transactions
+        'transactions': transactions,
+        'interest_cloud': interest_cloud,
     })
 
-# ==========================================
-# 4. لوحة الإدارة والتحليلات (Admin Only)
-# ==========================================
+@login_required
+@transaction.atomic
+def borrow_request(request, book_id):
+    book = get_object_or_404(Book, id=book_id)
+    student = get_object_or_404(StudentProfile, user=request.user)
+
+    if book.available_copies < 1:
+        messages.error(request, "عذراً، لا توجد نسخ متاحة.")
+        return redirect('library:book_detail', book_id=book.id)
+
+    if Transaction.objects.filter(student=student, book=book, status__in=['pending', 'active']).exists():
+        messages.warning(request, "لديك طلب مسبق لهذا الكتاب.")
+        return redirect('library:book_detail', book_id=book.id)
+
+    Transaction.objects.create(student=student, book=book, status='pending')
+    messages.success(request, "تم إرسال طلب الاستعارة!")
+    return redirect('library:profile')
 
 @login_required
 @user_passes_test(is_admin)
 def analytics_dashboard(request):
     total_books = Book.objects.count()
     active_loans_count = Transaction.objects.filter(status='active').count()
+    most_borrowed = Book.objects.annotate(bc=Count('transaction')).order_by('-bc')[:5]
+    gap_analysis = SearchLog.objects.filter(result_count=0).values('query_text').annotate(sc=Count('query_text')).order_by('-sc')[:5]
+    avg_pages = Book.objects.aggregate(Avg('page_count'))['page_count__avg'] or 0
+
+    total_minutes = (avg_pages / 200) * 60
     
-    most_borrowed = Book.objects.annotate(
-        borrow_count=Count('transaction')
-    ).filter(borrow_count__gt=0).order_by('-borrow_count')[:5]
+    if total_minutes >= 60:
+        hours = int(total_minutes // 60)
+        mins = int(total_minutes % 60)
+        avg_reading_time = f"{hours} ساعة و {mins} دقيقة"
+    else:
+        avg_reading_time = f"{int(total_minutes)} دقيقة"
 
-    avg_reading_data = Transaction.objects.filter(status='returned').aggregate(
-        avg_diff=Avg(F('return_date') - F('borrow_date'))
-    )
-    
-    avg_borrow_days = 0
-    if avg_reading_data['avg_diff']:
-        avg_borrow_days = avg_reading_data['avg_diff'].days
-
-    gap_analysis = SearchLog.objects.filter(result_count=0).values('query_text').annotate(
-        search_count=Count('query_text')
-    ).order_by('-search_count')[:5]
-
-    context = {
+    return render(request, 'library/analytics.html', {
         'total_books': total_books,
         'active_loans_count': active_loans_count,
         'most_borrowed': most_borrowed,
-        'avg_borrow_days': avg_borrow_days,
         'gap_analysis': gap_analysis,
-    }
-    
-    return render(request, 'library/analytics.html', context)
+        'avg_reading_time': avg_reading_time,
+    })
 
 @login_required
 @user_passes_test(is_admin)
 def manage_transaction(request, transaction_id, action):
     trans = get_object_or_404(Transaction, id=transaction_id)
-    if action == 'approve':
-        if trans.book.available_copies > 0:
-            trans.status = 'active'
-            trans.book.available_copies -= 1
-            trans.book.save()
-            trans.borrow_date = timezone.now()
-            trans.save()
-            messages.success(request, f"تمت الموافقة على طلب الطالب.")
-        else:
-            messages.error(request, "لا توجد نسخ كافية.")
+    if action == 'approve' and trans.book.available_copies > 0:
+        trans.status = 'active'
+        trans.book.available_copies -= 1
+        trans.book.save()
+        trans.borrow_date = timezone.now()
+        trans.due_date = trans.borrow_date + timezone.timedelta(days=14)
+        trans.save()
+        messages.success(request, "تمت الموافقة.")
     elif action == 'reject':
         trans.status = 'rejected'
         trans.save()
-        messages.info(request, "تم رفض الطلب.")
+        messages.info(request, "تم الرفض.")
     elif action == 'return':
         trans.status = 'returned'
         trans.return_date = timezone.now()
         trans.book.available_copies += 1
         trans.book.save()
         trans.save()
-        messages.success(request, "تم تسجيل إرجاع الكتاب بنجاح.")
-
+        messages.success(request, "تم الإرجاع.")
     return redirect('library:analytics')

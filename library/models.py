@@ -45,6 +45,9 @@ class Book(models.Model):
     description = models.TextField(blank=True, verbose_name="وصف الكتاب")
     cover_image_url = models.URLField(blank=True, null=True, verbose_name="رابط الغلاف")
     
+    # حقل عدد الصفحات لحساب مدة القراءة
+    page_count = models.IntegerField(default=100, verbose_name="عدد الصفحات")
+    
     total_copies = models.IntegerField(default=1, verbose_name="العدد الكلي")
     available_copies = models.IntegerField(default=1, verbose_name="النسخ المتاحة")
     tags = models.CharField(max_length=200, blank=True, verbose_name="وسوم")
@@ -53,6 +56,23 @@ class Book(models.Model):
     embedding = models.JSONField(blank=True, null=True, verbose_name="البصمة الرقمية (AI Vector)")
     
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def reading_time(self):
+        """
+        حساب متوسط مدة القراءة.
+        بافتراض أن الشخص يقرأ صفحة واحدة كل دقيقتين تقريباً.
+        """
+        if self.page_count:
+            minutes = self.page_count * 2
+            if minutes < 60:
+                return f"{minutes} دقيقة"
+            hours = minutes // 60
+            remaining_mins = minutes % 60
+            if remaining_mins > 0:
+                return f"{hours} ساعة و {remaining_mins} دقيقة"
+            return f"{hours} ساعة"
+        return "غير محدد"
 
     def __str__(self):
         return f"{self.title} | {self.author}"
@@ -118,7 +138,6 @@ class Transaction(models.Model):
     user_rating = models.IntegerField(null=True, blank=True, verbose_name="التقييم (1-5)")
 
     def save(self, *args, **kwargs):
-        # Business Logic for dates and inventory
         if self.status == 'active':
             if not self.borrow_date:
                 self.borrow_date = timezone.now()
