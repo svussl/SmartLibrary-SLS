@@ -10,7 +10,7 @@ SECRET_KEY = 'django-insecure-smart-library-system-key-replace-this'
 # وضع التصحيح (Debug) - تفعيله أثناء التطوير فقط
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # التطبيقات المثبتة
 INSTALLED_APPS = [
@@ -107,4 +107,5 @@ CSRF_TRUSTED_ORIGINS = [
     'https://localhost:8000',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
+
 ]
