@@ -10,6 +10,9 @@ from .forms import UserRegistrationForm, StudentLoginForm
 from django.db import transaction
 from collections import Counter
 
+# استيراد دالة توسيع الاستعلام التي أنشأناها
+from .search_utils import expand_search_query 
+
 # ==========================================
 # دالة مساعدة لفحص الصلاحيات (Admin Check)
 # ==========================================
@@ -103,9 +106,13 @@ def search_view(request):
     books = []
     
     if query:
+        # 1. تطبيق دالة توسيع الاستعلام هنا قبل تمريره لمحرك الذكاء الاصطناعي
+        enhanced_query = expand_search_query(query)
+        
         ai_engine = SmartLibraryAI()
-        # جلب الكتب المرتبة دلالياً من المحرك
-        results = ai_engine.semantic_search(query, top_k=20)
+        
+        # 2. نمرر الاستعلام المُحسّن (enhanced_query) بدلاً من الأصلي (query)
+        results = ai_engine.semantic_search(enhanced_query, top_k=20)
         
         # تحضير النتائج وإضافة match_score للعرض
         for i, book in enumerate(results):
@@ -120,7 +127,8 @@ def search_view(request):
         elif sort_option == 'popular':
             books.sort(key=lambda x: x.transaction_set.count(), reverse=True)
 
-        # تسجيل البحث للتحليلات (فقط عند البحث الفعلي وليس عند تغيير الترتيب فقط)
+        # تسجيل البحث للتحليلات 
+        # (نحتفظ بتسجيل الاستعلام الأصلي `query` لمعرفة ما يكتبه المستخدم فعلياً في تقارير التحليلات)
         if 'sort' not in request.GET:
             SearchLog.objects.create(
                 user=request.user, 
@@ -130,7 +138,7 @@ def search_view(request):
 
     context = {
         'books': books, 
-        'query': query,
+        'query': query, # نعيد الاستعلام الأصلي للواجهة لكي يظل ظاهراً في مربع البحث
         'current_sort': sort_option,
     }
     return render(request, 'library/search.html', context)
