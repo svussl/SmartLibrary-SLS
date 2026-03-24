@@ -9,6 +9,7 @@ from .ai_engine import SmartLibraryAI
 from .forms import UserRegistrationForm, StudentLoginForm
 from django.db import transaction
 from collections import Counter
+from django.db.models import Q
 
 # استيراد دالة توسيع الاستعلام التي أنشأناها
 from .search_utils import expand_search_query 
@@ -101,25 +102,41 @@ def home(request):
 @login_required
 def search_view(request):
     query = request.GET.get('q', '')
+    search_type = request.GET.get('search_type', 'advanced') # التقاط نوع البحث من الواجهة
     sort_option = request.GET.get('sort', 'relevance')
     
     books = []
     
     if query:
-        # 1. تطبيق دالة توسيع الاستعلام هنا قبل تمريره لمحرك الذكاء الاصطناعي
-        enhanced_query = expand_search_query(query)
-        
-        ai_engine = SmartLibraryAI()
-        
-        # 2. نمرر الاستعلام المُحسّن (enhanced_query) بدلاً من الأصلي (query)
-        results = ai_engine.semantic_search(enhanced_query, top_k=20)
-        
-        # تحضير النتائج وإضافة match_score للعرض
-        for i, book in enumerate(results):
-            # إذا لم يزودنا المحرك بـ score، ننشئ واحداً افتراضياً للترتيب
-            if not hasattr(book, 'match_score'):
-                book.match_score = max(100 - (i * 4), 50)
-            books.append(book)
+        if search_type == 'normal':
+            # ==========================================
+            # البحث العادي (مطابقة كلاسيكية)
+            # ==========================================
+            # يبحث في العنوان أو المؤلف أو رقم الـ ISBN
+            results = Book.objects.filter(
+                Q(title__icontains=query) |
+                Q(author__icontains=query) |
+                Q(isbn__icontains=query)
+            ).distinct()
+            
+            books = list(results)
+            
+            # في البحث العادي لا توجد نسبة مطابقة للذكاء الاصطناعي
+            for book in books:
+                book.match_score = None 
+                
+        else:
+            # ==========================================
+            # البحث المتقدم (AI Semantic Search)
+            # ==========================================
+            enhanced_query = expand_search_query(query)
+            ai_engine = SmartLibraryAI()
+            results = ai_engine.semantic_search(enhanced_query, top_k=20)
+            
+            for i, book in enumerate(results):
+                if not hasattr(book, 'match_score'):
+                    book.match_score = max(100 - (i * 4), 50)
+                books.append(book)
 
         # تطبيق خيارات الترتيب الإضافية
         if sort_option == 'newest':
@@ -127,8 +144,7 @@ def search_view(request):
         elif sort_option == 'popular':
             books.sort(key=lambda x: x.transaction_set.count(), reverse=True)
 
-        # تسجيل البحث للتحليلات 
-        # (نحتفظ بتسجيل الاستعلام الأصلي `query` لمعرفة ما يكتبه المستخدم فعلياً في تقارير التحليلات)
+        # تسجيل البحث للتحليلات
         if 'sort' not in request.GET:
             SearchLog.objects.create(
                 user=request.user, 
@@ -138,8 +154,9 @@ def search_view(request):
 
     context = {
         'books': books, 
-        'query': query, # نعيد الاستعلام الأصلي للواجهة لكي يظل ظاهراً في مربع البحث
+        'query': query, 
         'current_sort': sort_option,
+        'search_type': search_type, # تمرير نوع البحث للواجهة لكي نحافظ على الاختيار
     }
     return render(request, 'library/search.html', context)
 
