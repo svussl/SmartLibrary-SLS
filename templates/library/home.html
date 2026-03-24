@@ -39,23 +39,29 @@
         <p class="lead text-muted mb-5">ابحث بالمفهوم، وسيقوم الذكاء الاصطناعي بجلب المصادر الأنسب لك.</p>
         
         <div class="row justify-content-center mb-5">
-            <div class="col-lg-8">
+            <div class="col-lg-9">
                 <form action="{% url 'library:search' %}" method="get" class="hero-search d-flex align-items-center bg-white p-1 rounded-pill shadow-lg border">
                     <div class="ps-3 pe-2 text-primary">
                         <i class="bi bi-search fs-5"></i>
                     </div>
-                    <input type="text" name="q" class="form-control border-0 shadow-none fs-5" placeholder="عن ماذا تبحث اليوم؟ (مثال: الذكاء الاصطناعي في الطب)..." required>
-                    <button class="btn btn-primary rounded-pill px-4 py-2 fw-bold" type="submit">بحث ذكي</button>
+                    
+                    <select name="search_type" class="form-select border-0 shadow-none bg-light text-muted w-auto rounded-pill px-3 py-2 me-2" style="max-width: 170px; cursor: pointer; font-weight: 600;">
+                        <option value="advanced" selected>بحث متقدم (AI)</option>
+                        <option value="normal">بحث عادي</option>
+                    </select>
+
+                    <input type="text" name="q" class="form-control border-0 shadow-none fs-5" placeholder="عن ماذا تبحث اليوم؟ (مفهوم، عنوان، مؤلف، ISBN)..." required>
+                    <button class="btn btn-primary rounded-pill px-4 py-2 fw-bold" type="submit">بحث</button>
                 </form>
             </div>
         </div>
 
         <div class="d-flex justify-content-center align-items-center flex-wrap gap-2 opacity-75">
             <span class="text-muted small me-2 py-2 fw-bold"><i class="bi bi-lightning-charge-fill text-warning"></i> الأكثر بحثاً:</span>
-            <a href="{% url 'library:search' %}?q=الذكاء الاصطناعي" class="badge rounded-pill bg-light text-dark border p-2 text-decoration-none hover-shadow">الذكاء الاصطناعي</a>
-            <a href="{% url 'library:search' %}?q=Python Programming" class="badge rounded-pill bg-light text-dark border p-2 text-decoration-none hover-shadow">Python</a>
-            <a href="{% url 'library:search' %}?q=Data Science" class="badge rounded-pill bg-light text-dark border p-2 text-decoration-none hover-shadow">علم البيانات</a>
-            <a href="{% url 'library:search' %}?q=Cyber Security" class="badge rounded-pill bg-light text-dark border p-2 text-decoration-none hover-shadow">الأمن السيبراني</a>
+            <a href="{% url 'library:search' %}?q=الذكاء الاصطناعي&search_type=advanced" class="badge rounded-pill bg-light text-dark border p-2 text-decoration-none hover-shadow">الذكاء الاصطناعي</a>
+            <a href="{% url 'library:search' %}?q=Python Programming&search_type=advanced" class="badge rounded-pill bg-light text-dark border p-2 text-decoration-none hover-shadow">Python</a>
+            <a href="{% url 'library:search' %}?q=Data Science&search_type=advanced" class="badge rounded-pill bg-light text-dark border p-2 text-decoration-none hover-shadow">علم البيانات</a>
+            <a href="{% url 'library:search' %}?q=Cyber Security&search_type=advanced" class="badge rounded-pill bg-light text-dark border p-2 text-decoration-none hover-shadow">الأمن السيبراني</a>
         </div>
     </div>
     
@@ -65,7 +71,6 @@
 </section>
 
 <div class="container my-5">
-    <!-- عنوان القسم المتغير حسب الحالة -->
     <div class="d-flex justify-content-between align-items-end mb-4">
         <div>
             {% if user.studentprofile %}
@@ -79,23 +84,26 @@
             {% endif %}
         </div>
         
-        <!-- مربع بحث سريع في الرئيسية -->
-        <div class="d-none d-md-block" style="width: 300px;">
-            <form action="{% url 'library:search' %}" method="get" class="position-relative">
-                <input type="text" name="q" class="form-control rounded-pill ps-4 pe-5 bg-light border-0 py-2" placeholder="بحث ذكي...">
-                <button type="submit" class="btn position-absolute top-50 end-0 translate-middle-y border-0 text-primary pe-3">
-                    <i class="bi bi-search"></i>
-                </button>
+        <div class="d-none d-md-block" style="width: 350px;">
+            <form action="{% url 'library:search' %}" method="get" class="d-flex bg-light rounded-pill overflow-hidden border">
+                <select name="search_type" class="form-select border-0 bg-transparent text-muted px-3 py-2 shadow-none" style="width: auto; font-size: 0.9rem; cursor: pointer; border-left: 1px solid #dee2e6 !important; border-radius: 0;">
+                    <option value="advanced" selected>AI</option>
+                    <option value="normal">عادي</option>
+                </select>
+                <div class="position-relative flex-grow-1">
+                    <input type="text" name="q" class="form-control bg-transparent border-0 shadow-none ps-3 pe-5 py-2 w-100" placeholder="بحث سريع...">
+                    <button type="submit" class="btn position-absolute top-50 end-0 translate-middle-y border-0 text-primary pe-3 bg-transparent">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
             </form>
         </div>
     </div>
 
-    <!-- شبكة الكتب -->
     <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-4">
         {% for book in books %}
         <div class="col">
             <div class="card h-100 border-0 shadow-sm hover-up rounded-4 overflow-hidden">
-                <!-- غلاف الكتاب -->
                 <div class="position-relative bg-light text-center overflow-hidden" style="height: 280px;">
                     {% if book.cover_image_url %}
                         <img src="{{ book.cover_image_url }}" class="w-100 h-100 object-fit-cover transition-transform" alt="{{ book.title }}">
@@ -106,12 +114,10 @@
                         </div>
                     {% endif %}
                     
-                    <!-- شارة التصنيف -->
                     <span class="position-absolute top-0 start-0 m-3 badge bg-white text-dark shadow-sm rounded-pill fw-normal">
                         {{ book.get_category_display }}
                     </span>
 
-                    <!-- شارة التوصية (تظهر فقط إذا كانت توصية AI) -->
                     {% if book.match_score %}
                     <span class="position-absolute bottom-0 end-0 m-3 badge bg-warning text-dark shadow-sm rounded-pill">
                         <i class="bi bi-lightning-fill me-1"></i>{{ book.match_score|floatformat:0 }}%
@@ -119,7 +125,6 @@
                     {% endif %}
                 </div>
 
-                <!-- تفاصيل الكتاب -->
                 <div class="card-body p-4">
                     <h6 class="fw-bold mb-1 text-truncate" title="{{ book.title }}">{{ book.title }}</h6>
                     <p class="text-muted small mb-3">{{ book.author }}</p>
@@ -156,5 +161,6 @@
     .object-fit-cover { object-fit: cover; }
     .transition-transform { transition: transform 0.5s ease; }
     .hover-up:hover .transition-transform { transform: scale(1.05); }
+    select:focus, input:focus { outline: none !important; box-shadow: none !important; }
 </style>
 {% endblock %}
