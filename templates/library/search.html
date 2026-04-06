@@ -4,7 +4,6 @@
 <div class="container my-5">
     <div class="row">
         
-        <!-- Sidebar: Filter & Sort -->
         <div class="col-lg-3 mb-4">
             <div class="card border-0 shadow-sm sticky-top" style="top: 100px;">
                 <div class="card-body p-4">
@@ -12,6 +11,7 @@
                     
                     <form method="GET" action="{% url 'library:search' %}" id="filterForm">
                         <input type="hidden" name="q" value="{{ query }}">
+                        <input type="hidden" name="search_type" value="{{ search_type }}">
 
                         <div class="mb-4">
                             <label class="form-label small fw-bold text-muted text-uppercase">ترتيب حسب</label>
@@ -19,6 +19,24 @@
                                 <option value="relevance" {% if current_sort == 'relevance' %}selected{% endif %}>الأكثر صلة (AI)</option>
                                 <option value="newest" {% if current_sort == 'newest' %}selected{% endif %}>الأحدث إضافة</option>
                                 <option value="popular" {% if current_sort == 'popular' %}selected{% endif %}>الأكثر شيوعاً</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">نوع الكتاب</label>
+                            <select name="book_type" class="form-select border-0 bg-light rounded-3" onchange="this.form.submit()">
+                                <option value="">الكل</option>
+                                <option value="printed" {% if current_book_type == 'printed' %}selected{% endif %}>كتاب مطبوع</option>
+                                <option value="ebook" {% if current_book_type == 'ebook' %}selected{% endif %}>كتاب إلكتروني</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">لغة الكتاب</label>
+                            <select name="language" class="form-select border-0 bg-light rounded-3" onchange="this.form.submit()">
+                                <option value="">الكل</option>
+                                <option value="العربية" {% if current_language == 'العربية' %}selected{% endif %}>العربية</option>
+                                <option value="English" {% if current_language == 'English' %}selected{% endif %}>English</option>
                             </select>
                         </div>
                         
@@ -31,7 +49,6 @@
             </div>
         </div>
 
-        <!-- Main Content: Search Results -->
         <div class="col-lg-9">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h4 class="fw-bold mb-0">نتائج البحث عن: "<span class="text-primary">{{ query }}</span>"</h4>
@@ -43,7 +60,6 @@
                     {% for book in books %}
                     <div class="card border-0 shadow-sm hover-shadow transition-all overflow-hidden position-relative">
                         <div class="row g-0">
-                            <!-- Book Cover -->
                             <div class="col-md-2 bg-light">
                                 {% if book.cover_image_url %}
                                     <img src="{{ book.cover_image_url }}" class="w-100 h-100 object-fit-cover" alt="{{ book.title }}" style="min-height: 180px;">
@@ -54,14 +70,12 @@
                                 {% endif %}
                             </div>
                             
-                            <!-- Book Info -->
                             <div class="col-md-10">
                                 <div class="card-body h-100 d-flex flex-column py-3">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div class="flex-grow-1">
                                             <div class="d-flex align-items-center gap-2 mb-2">
                                                 <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill small">{{ book.get_category_display }}</span>
-                                                <!-- إضافة متوسط مدة القراءة هنا -->
                                                 <span class="text-muted small border-start ps-2">
                                                     <i class="bi bi-clock-history me-1 text-secondary"></i>
                                                     {{ book.reading_time }}
@@ -74,12 +88,11 @@
                                                 </a>
                                             </h5>
                                             <p class="card-text text-muted small mb-2"><i class="bi bi-person me-1"></i>{{ book.author }}</p>
-                                            <p class="card-text text-muted small text-truncate-2">
+                                            <p class="card-text text-muted small text-truncate-2 mb-2">
                                                 {{ book.description|default:"لا يوجد وصف متاح لهذا الكتاب."|truncatewords:25 }}
                                             </p>
                                         </div>
                                         
-                                        <!-- AI Matching Score Indicator -->
                                         {% if book.match_score %}
                                         <div class="text-center ms-3 d-none d-sm-block" style="z-index: 5;">
                                             <div class="position-relative d-inline-flex align-items-center justify-content-center">
@@ -94,13 +107,29 @@
                                         {% endif %}
                                     </div>
                                     
-                                    <div class="mt-auto d-flex align-items-center justify-content-between">
-                                        <div class="d-flex gap-3">
+                                    <div class="mt-auto border-top pt-2 mt-2">
+                                        <div class="d-flex flex-wrap gap-3 align-items-center">
                                             <small class="text-muted"><i class="bi bi-layers me-1"></i>{{ book.available_copies }} نسخة متاحة</small>
                                             <small class="text-muted"><i class="bi bi-file-earmark-text me-1"></i>{{ book.page_count }} صفحة</small>
+                                            
+                                            <small class="text-muted"><i class="bi bi-journal-bookmark me-1"></i>{{ book.get_book_type_display }}</small>
+                                            
+                                            {% if book.language %}
+                                                <small class="text-muted"><i class="bi bi-translate me-1"></i>{{ book.language }}</small>
+                                            {% endif %}
+                                            
+                                            {% if book.publication_year %}
+                                                <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>{{ book.publication_year }}</small>
+                                            {% endif %}
+                                            
+                                            {% if book.publisher %}
+                                                <small class="text-muted"><i class="bi bi-building me-1"></i>{{ book.publisher }}</small>
+                                            {% endif %}
+                                            
+                                            <i class="bi bi-arrow-left text-primary opacity-50 ms-auto"></i>
                                         </div>
-                                        <i class="bi bi-arrow-left text-primary opacity-50"></i>
                                     </div>
+                                    
                                 </div>
                             </div>
                         </div>
@@ -139,7 +168,6 @@
         overflow: hidden;
     }
     .object-fit-cover { object-fit: cover; }
-    /* تنسيق إضافي لقسم مدة القراءة */
     .bi-clock-history {
         vertical-align: middle;
         margin-bottom: 2px;

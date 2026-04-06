@@ -37,32 +37,34 @@ class Book(models.Model):
         ('General', 'ثقافة عامة (General Culture)'),
     ]
 
+    TYPE_CHOICES = [
+        ('printed', 'كتاب مطبوع (Printed)'),
+        ('ebook', 'كتاب إلكتروني (E-Book)'),
+    ]
+
     title = models.CharField(max_length=200, verbose_name="عنوان الكتاب")
     author = models.CharField(max_length=100, verbose_name="المؤلف")
-    isbn = models.CharField(max_length=13, blank=True, null=True, verbose_name="رقم الإيداع (ISBN)")
     
+    # --- الحقول الجديدة ---
+    publisher = models.CharField(max_length=200, blank=True, null=True, verbose_name="الناشر")
+    publication_year = models.IntegerField(blank=True, null=True, verbose_name="سنة النشر")
+    language = models.CharField(max_length=50, blank=True, null=True, verbose_name="لغة الكتاب")
+    book_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='printed', verbose_name="نوع الكتاب")
+    # ---------------------
+
+    isbn = models.CharField(max_length=13, blank=True, null=True, verbose_name="رقم الإيداع (ISBN)")
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='General', verbose_name="التصنيف")
     description = models.TextField(blank=True, verbose_name="وصف الكتاب")
     cover_image_url = models.URLField(blank=True, null=True, verbose_name="رابط الغلاف")
-    
-    # حقل عدد الصفحات لحساب مدة القراءة
     page_count = models.IntegerField(default=100, verbose_name="عدد الصفحات")
-    
     total_copies = models.IntegerField(default=1, verbose_name="العدد الكلي")
     available_copies = models.IntegerField(default=1, verbose_name="النسخ المتاحة")
     tags = models.CharField(max_length=200, blank=True, verbose_name="وسوم")
-    
-    # === حقل الذكاء الاصطناعي ===
     embedding = models.JSONField(blank=True, null=True, verbose_name="البصمة الرقمية (AI Vector)")
-    
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property
     def reading_time(self):
-        """
-        حساب متوسط مدة القراءة.
-        بافتراض أن الشخص يقرأ صفحة واحدة كل دقيقتين تقريباً.
-        """
         if self.page_count:
             minutes = self.page_count * 2
             if minutes < 60:
@@ -76,6 +78,7 @@ class Book(models.Model):
 
     def __str__(self):
         return f"{self.title} | {self.author}"
+
 
 # ==========================================
 # 2. ملف الطالب (Student Profile)
@@ -98,14 +101,7 @@ class StudentProfile(models.Model):
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     student_id = models.CharField(max_length=20, unique=True, verbose_name="الرقم الجامعي")
-    
-    major = models.CharField(
-        max_length=50, 
-        choices=MAJOR_CHOICES, 
-        default='General',
-        verbose_name="التخصص الدراسي"
-    )
-
+    major = models.CharField(max_length=50, choices=MAJOR_CHOICES, default='General', verbose_name="التصنيف")
     interest_fingerprint = models.TextField(blank=True, null=True, verbose_name="بصمة الاهتمامات")
 
     def __str__(self):
@@ -128,12 +124,10 @@ class Transaction(models.Model):
 
     book = models.ForeignKey(Book, on_delete=models.CASCADE, verbose_name="الكتاب")
     student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, verbose_name="الطالب")
-    
     request_date = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الطلب")
     borrow_date = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الاستلام الفعلي")
     due_date = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الاستحقاق")
     return_date = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الإرجاع")
-    
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="حالة الطلب")
     user_rating = models.IntegerField(null=True, blank=True, verbose_name="التقييم (1-5)")
 
@@ -143,22 +137,16 @@ class Transaction(models.Model):
                 self.borrow_date = timezone.now()
             if not self.due_date:
                 self.due_date = timezone.now() + timedelta(days=14)
-            
             if self.pk:
                 old_instance = Transaction.objects.get(pk=self.pk)
                 if old_instance.status != 'active' and self.book.available_copies > 0:
                     self.book.available_copies -= 1
                     self.book.save()
-            else:
-                if self.book.available_copies > 0:
-                    self.book.available_copies -= 1
-                    self.book.save()
-            
+        
         if self.status == 'returned' and not self.return_date:
             self.return_date = timezone.now()
             self.book.available_copies += 1
             self.book.save()
-            
         super().save(*args, **kwargs)
 
     @property
@@ -177,7 +165,60 @@ class Transaction(models.Model):
 
 
 # ==========================================
-# 4. سجل البحث (Gap Analysis Logs)
+# 4. التنبيهات (Notifications) - جديد
+# ==========================================
+class Notification(models.Model):
+    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, verbose_name="الطالب")
+    message = models.TextField(verbose_name="نص التنبيه")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإرسال")
+    is_read = models.BooleanField(default=False, verbose_name="هل تمت القراءة؟")
+
+    class Meta:
+        verbose_name = "تنبيه"
+        verbose_name_plural = "التنبيهات"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"تنبيه لـ {self.student.user.username}"
+
+
+# ==========================================
+# 5. إدارة المكتبة الواقعية (Physical Library Access) - جديد
+# ==========================================
+class PhysicalVisit(models.Model):
+    ACTIVITY_CHOICES = [
+        ('internet', 'استخدام إنترنت'),
+        ('reading', 'مطالعة كتاب داخلي'),
+        ('studying', 'دراسة شخصية'),
+    ]
+
+    student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, verbose_name="الطالب")
+    check_in = models.DateTimeField(default=timezone.now, verbose_name="وقت الدخول")
+    check_out = models.DateTimeField(null=True, blank=True, verbose_name="وقت الخروج")
+    activity = models.CharField(max_length=20, choices=ACTIVITY_CHOICES, verbose_name="النشاط")
+
+    @property
+    def stay_duration(self):
+        """حساب مدة البقاء في المكتبة"""
+        if self.check_in and self.check_out:
+            duration = self.check_out - self.check_in
+            total_seconds = int(duration.total_seconds())
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            return f"{hours} ساعة و {minutes} دقيقة"
+        return "لا يزال في المكتبة"
+
+    class Meta:
+        verbose_name = "زيارة واقعية"
+        verbose_name_plural = "زيارات المكتبة الواقعية"
+        ordering = ['-check_in']
+
+    def __str__(self):
+        return f"زيارة {self.student.student_id} - {self.activity}"
+
+
+# ==========================================
+# 6. سجل البحث (Gap Analysis Logs)
 # ==========================================
 class SearchLog(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)

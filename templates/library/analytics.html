@@ -13,7 +13,6 @@
 </div>
 
 <div class="row g-4 mb-5">
-    <!-- كرت إجمالي الكتب -->
     <div class="col-md-6 col-lg-3">
         <div class="card border-0 shadow-sm rounded-4 h-100 bg-white border-start border-4 border-primary">
             <div class="card-body">
@@ -28,7 +27,6 @@
         </div>
     </div>
 
-    <!-- كرت الإعارات النشطة -->
     <div class="col-md-6 col-lg-3">
         <div class="card border-0 shadow-sm rounded-4 h-100 bg-white border-start border-4 border-success">
             <div class="card-body">
@@ -42,31 +40,23 @@
             </div>
         </div>
     </div>
-
-    <!-- كرت متوسط مدة القراءة (تم تحديثه ليعرض البيانات الجديدة) -->
+    
     <div class="col-md-6 col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 h-100 bg-info text-white" style="background: linear-gradient(135deg, #0dcaf0 0%, #0aa2c0 100%);">
-            <div class="card-body d-flex align-items-center justify-content-between">
-                <div>
-                    <h5 class="fw-bold mb-1"><i class="bi bi-stopwatch me-2"></i> متوسط مدة القراءة المتوقعة</h5>
-                    <p class="mb-0 opacity-75 small">بناءً على إجمالي صفحات الكتب (بمعدل 200 صفحة/ساعة)</p>
-                </div>
-                <div class="text-end">
-                    {% if avg_reading_time %}
-                        <h2 class="fw-bold mb-0">{{ avg_reading_time }}</h2>
-                        <span class="badge bg-white text-info mt-2">تحليل المحتوى </span>
-                    {% else %}
-                        <span class="badge bg-white text-info">جاري حساب البيانات...</span>
-                    {% endif %}
-                </div>
+            <div class="card-body d-flex flex-column justify-content-center">
+                <h6 class="fw-bold mb-2"><i class="bi bi-stopwatch me-1"></i> متوسط مدة القراءة</h6>
+                {% if avg_reading_time %}
+                    <h3 class="fw-bold mb-0">{{ avg_reading_time }}</h3>
+                {% else %}
+                    <span class="badge bg-white text-info">جاري الحساب...</span>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<div class="row g-4">
+<div class="row g-4 mb-5">
     
-    <!-- قائمة الكتب الأكثر استعارة -->
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
@@ -86,7 +76,7 @@
                             </div>
                         </div>
                         <span class="badge bg-success rounded-pill px-3">
-                            {{ book.borrow_count }} إعارة
+                            {{ book.bc }} إعارة
                         </span>
                     </li>
                     {% empty %}
@@ -102,7 +92,6 @@
         </div>
     </div>
 
-    <!-- تحليل الفجوات (Gap Analysis) -->
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-header bg-danger text-white py-3 border-0">
@@ -132,7 +121,7 @@
                                 {% for log in gap_analysis %}
                                 <tr>
                                     <td class="fw-bold text-danger">{{ log.query_text }}</td>
-                                    <td class="text-center"><span class="badge bg-secondary rounded-pill">{{ log.search_count }}</span></td>
+                                    <td class="text-center"><span class="badge bg-secondary rounded-pill">{{ log.sc }}</span></td>
                                     <td>
                                         <a href="https://www.google.com/search?q=books+about+{{ log.query_text }}" target="_blank" class="btn btn-sm btn-outline-dark rounded-pill">
                                             <i class="bi bi-cart-plus me-1"></i> بحث للشراء
@@ -161,6 +150,272 @@
 
 </div>
 
+<div class="row g-4 mt-2">
+    <div class="col-12">
+        <h4 class="fw-bold mb-3 border-bottom pb-2"><i class="bi bi-building me-2 text-primary"></i> إدارة المكتبة الواقعية (Physical Facility)</h4>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-header bg-primary text-white py-3 border-0">
+                <h6 class="fw-bold mb-0"><i class="bi bi-box-arrow-in-right me-2"></i> تسجيل دخول (Check-in)</h6>
+            </div>
+            <div class="card-body">
+                <form action="{% url 'library:physical_check_in' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">الرقم الجامعي للطالب</label>
+                        <input type="text" name="student_id" list="studentsList" class="form-control bg-light border-0 py-2" placeholder="ابحث بالاسم أو الرقم..." autocomplete="off" required>
+                        <datalist id="studentsList">
+                            {% for s in all_students %}
+                                <option value="{{ s.student_id }}">الطالب: {{ s.user.get_full_name }}</option>
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small">نوع النشاط</label>
+                        <select name="activity" class="form-select bg-light border-0 py-2" required>
+                            <option value="internet">استخدام إنترنت</option>
+                            <option value="reading">مطالعة كتاب داخلي</option>
+                            <option value="studying">دراسة شخصية</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2">
+                        تسجيل الدخول <i class="bi bi-check2-circle ms-1"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-success"><i class="bi bi-people-fill me-2"></i> المتواجدون حالياً في المكتبة (Live)</h6>
+                <span class="badge bg-success rounded-pill">{{ active_visits|length }} طلاب</span>
+            </div>
+            <div class="card-body p-0">
+                {% if active_visits %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small">
+                            <tr>
+                                <th class="ps-4">الطالب</th>
+                                <th>النشاط</th>
+                                <th>وقت الدخول</th>
+                                <th class="text-end pe-4">الإجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for visit in active_visits %}
+                            <tr>
+                                <td class="ps-4 fw-bold">
+                                    {{ visit.student.user.get_full_name }}
+                                    <div class="small text-muted fw-normal">{{ visit.student.student_id }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">
+                                        {{ visit.get_activity_display }}
+                                    </span>
+                                </td>
+                                <td dir="ltr" class="small text-muted">{{ visit.check_in|time:"H:i" }}</td>
+                                <td class="text-end pe-4">
+                                    <a href="{% url 'library:physical_check_out' visit.id %}" class="btn btn-sm btn-outline-danger rounded-pill px-3">
+                                        تسجيل خروج <i class="bi bi-box-arrow-right ms-1"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-door-open fs-1 text-muted opacity-25"></i>
+                    <h6 class="text-muted mt-3">لا يوجد طلاب داخل المكتبة حالياً.</h6>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mt-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-header bg-white py-3 border-0">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-clock-history me-2 text-warning"></i> أوقات الذروة (Peak Hours)</h6>
+            </div>
+            <div class="card-body">
+                {% if peak_hours %}
+                    <ul class="list-group list-group-flush">
+                        {% for ph in peak_hours %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 mb-2">
+                            <div>
+                                <i class="bi bi-clock me-2 text-muted"></i> 
+                                <span class="fw-bold">الساعة {{ ph.hour|stringformat:"02d" }}:00</span>
+                            </div>
+                            <div class="d-flex align-items-center w-50">
+                                <div class="progress flex-grow-1 me-2" style="height: 8px;">
+                                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ ph.count|add:10 }}%;"></div>
+                                </div>
+                                <span class="badge bg-light text-dark border">{{ ph.count }} زيارة</span>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted small text-center mt-3">لا توجد بيانات كافية لحساب أوقات الذروة.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mt-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-header bg-white py-3 border-0">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-diagram-3 me-2 text-info"></i> التخصصات الأكثر زيارة للمكتبة</h6>
+            </div>
+            <div class="card-body">
+                {% if top_majors %}
+                    <ul class="list-group list-group-flush">
+                        {% for tm in top_majors %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 border-0 mb-2">
+                            <div class="text-truncate" style="max-width: 60%;">
+                                <i class="bi bi-mortarboard me-2 text-muted"></i> 
+                                <span class="fw-bold">{{ tm.major_display }}</span>
+                            </div>
+                            <div class="d-flex align-items-center w-40">
+                                <div class="progress flex-grow-1 me-2" style="height: 8px;">
+                                    <div class="progress-bar bg-info" role="progressbar" style="width: {{ tm.count|add:20 }}%;"></div>
+                                </div>
+                                <span class="badge bg-light text-dark border">{{ tm.count }} طالب</span>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted small text-center mt-3">لا توجد بيانات ديموغرافية كافية للتحليل.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2 mb-5">
+    <div class="col-12">
+        <h4 class="fw-bold mb-3 border-bottom pb-2"><i class="bi bi-bar-chart-line-fill me-2 text-primary"></i> التحليل البصري للبيانات</h4>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-header bg-white py-3 border-0">
+                <h6 class="fw-bold mb-0 text-dark">توزيع أنواع النشاط حسب التخصص الأكاديمي</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="chartMajorActivity" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 bg-white">
+            <div class="card-header bg-white py-3 border-0">
+                <h6 class="fw-bold mb-0 text-dark">التصنيفات العلمية الأكثر استعارة</h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <canvas id="chartCategories"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4 bg-white">
+            <div class="card-header bg-white py-3 border-0">
+                <h6 class="fw-bold mb-0 text-dark">كثافة أنشطة المكتبة على مدار ساعات الدوام</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="chartTimeActivity" height="80"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
 
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // استلام البيانات من الخادم
+        const data1 = JSON.parse('{{ chart1_data|safe }}');
+        const data2 = JSON.parse('{{ chart2_data|safe }}');
+        const data3 = JSON.parse('{{ chart3_data|safe }}');
+
+        // ألوان الهوية البصرية للمخططات
+        const colorInternet = 'rgba(76, 201, 240, 0.8)';
+        const colorReading = 'rgba(67, 97, 238, 0.8)';
+        const colorStudying = 'rgba(63, 55, 201, 0.8)';
+
+        // 1. رسم مخطط النشاط والتخصص (Stacked Bar)
+        new Chart(document.getElementById('chartMajorActivity'), {
+            type: 'bar',
+            data: {
+                labels: data1.labels,
+                datasets: [
+                    { label: 'إنترنت', data: data1.internet, backgroundColor: colorInternet },
+                    { label: 'مطالعة', data: data1.reading, backgroundColor: colorReading },
+                    { label: 'دراسة', data: data1.studying, backgroundColor: colorStudying }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true }
+                }
+            }
+        });
+
+        // 2. رسم مخطط الزمن والنشاط (Line Chart)
+        new Chart(document.getElementById('chartTimeActivity'), {
+            type: 'line',
+            data: {
+                labels: data2.labels,
+                datasets: [
+                    { label: 'إنترنت', data: data2.internet, borderColor: colorInternet, backgroundColor: colorInternet, tension: 0.4 },
+                    { label: 'مطالعة', data: data2.reading, borderColor: colorReading, backgroundColor: colorReading, tension: 0.4 },
+                    { label: 'دراسة', data: data2.studying, borderColor: colorStudying, backgroundColor: colorStudying, tension: 0.4 }
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    tooltip: { mode: 'index', intersect: false }
+                }
+            }
+        });
+
+        // 3. رسم مخطط التصنيفات (Doughnut Chart)
+        new Chart(document.getElementById('chartCategories'), {
+            type: 'doughnut',
+            data: {
+                labels: data3.labels,
+                datasets: [{
+                    data: data3.data,
+                    backgroundColor: [
+                        '#4361ee', '#3a0ca3', '#7209b7', '#f72585', '#4cc9f0', '#4895ef'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    });
+</script>
+
 {% endblock %}

@@ -5,11 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SLS - المكتبة الذكية</title>
     
-    <!-- Bootstrap 5 CSS (RTL) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
-    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <!-- Google Fonts: Cairo -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     
     <style>
@@ -125,14 +122,17 @@
             padding: 30px 0;
             border-top: 1px solid rgba(0,0,0,0.05);
         }
+        
+        /* تنبيهات */
+        .notification-bell:hover {
+            background-color: #f8f9fa;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
-            <!-- الشعار -->
             <a class="navbar-brand" href="{% url 'library:home' %}">
                 <i class="bi bi-book-half me-2"></i>SLS Library
             </a>
@@ -147,11 +147,10 @@
                         <a class="nav-link" href="{% url 'library:home' %}">الرئيسية</a>
                     </li>
                     
-                    <!-- روابط خاصة تظهر فقط للمشرف (Admin Links) -->
                     {% if user.is_authenticated and user.is_superuser %}
                         <li class="nav-item">
                             <a class="nav-link text-danger" href="{% url 'library:analytics' %}">
-                                <i class="bi bi-graph-up-arrow me-1"></i> التحليلات
+                                <i class="bi bi-graph-up-arrow me-1"></i> التحليلات و الإدارة
                             </a>
                         </li>
                         <li class="nav-item">
@@ -162,10 +161,18 @@
                     {% endif %}
                 </ul>
                 
-                <!-- منطقة المستخدم (User Area) -->
                 <div class="d-flex align-items-center border-start ps-3 ms-3">
                     {% if user.is_authenticated %}
-                        <!-- قائمة المستخدم المسجل -->
+                        
+                        {% if not user.is_superuser %}
+                            <a href="{% url 'library:profile' %}" class="notification-bell rounded-circle text-muted text-decoration-none d-flex align-items-center justify-content-center me-3 position-relative" style="width: 40px; height: 40px; border: 1px solid #e9ecef;">
+                                <i class="bi bi-bell fs-5"></i>
+                                <span class="position-absolute top-0 start-0 translate-middle p-1 bg-danger border border-light rounded-circle">
+                                    <span class="visually-hidden">تنبيهات جديدة</span>
+                                </span>
+                            </a>
+                        {% endif %}
+
                         <div class="dropdown">
                             <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown">
                                 <div class="bg-light rounded-circle d-flex align-items-center justify-content-center text-primary fw-bold" style="width: 40px; height: 40px;">
@@ -181,13 +188,16 @@
                                 </div>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-2 rounded-4">
-                                <!-- رابط الملف الشخصي الجديد -->
-                                <li>
-                                    <a class="dropdown-item rounded-2" href="{% url 'library:profile' %}">
-                                        <i class="bi bi-person me-2"></i>الملف الشخصي
-                                    </a>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
+                                
+                                {% if not user.is_superuser %}
+                                    <li>
+                                        <a class="dropdown-item rounded-2" href="{% url 'library:profile' %}">
+                                            <i class="bi bi-person-lines-fill me-2"></i>ملفي الشخصي والتنبيهات
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                {% endif %}
+                                
                                 <li>
                                     <a class="dropdown-item rounded-2 text-danger" href="{% url 'library:logout' %}">
                                         <i class="bi bi-box-arrow-left me-2"></i>تسجيل خروج
@@ -196,18 +206,16 @@
                             </ul>
                         </div>
                     {% else %}
-                        <!-- أزرار الزوار -->
                         <a href="{% url 'library:login' %}" class="btn btn-outline-primary btn-auth me-2">دخول</a>
                         <a href="{% url 'library:register' %}" class="btn btn-primary btn-auth">حساب جديد</a>
                     {% endif %}
+                </div>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- Main Content -->
     <main>
-        <!-- عرض رسائل النظام (Flash Messages: نجاح/خطأ) -->
         {% if messages %}
             <div class="container mt-4">
                 {% for message in messages %}
@@ -219,12 +227,10 @@
             </div>
         {% endif %}
 
-        <!-- هنا يتم حقن محتوى الصفحات الفرعية -->
         {% block content %}
         {% endblock %}
     </main>
 
-    <!-- Footer -->
     <footer class="text-center text-muted">
         <div class="container">
             <p class="mb-0 small fw-bold">جميع الحقوق محفوظة © 2026 نظام المكتبة الذكي (SLS)</p>
@@ -232,7 +238,6 @@
         </div>
     </footer>
 
-    <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
