@@ -1,5 +1,5 @@
 # ==========================================
-# ملف admin.py
+# ملف admin.py المحدث
 # ==========================================
 from django.contrib import admin
 from django.contrib import messages
@@ -45,9 +45,9 @@ class BookAdmin(admin.ModelAdmin):
         ('المعلومات الأساسية', {
             'fields': ('title', 'author', 'isbn', 'category', 'book_type', 'language')
         }),
-        ('بيانات النشر', {
-            'fields': ('publisher', 'publication_year'),
-            'description': 'تفاصيل دار النشر وتاريخ الإصدار لغايات التوثيق الأكاديمي.'
+        ('بيانات النشر والنسخة الرقمية', {
+            'fields': ('publisher', 'publication_year', 'pdf_file'),
+            'description': 'تفاصيل دار النشر، تاريخ الإصدار، ورفع ملف الكتاب الإلكتروني (PDF).'
         }),
         ('التفاصيل والمحتوى', {
             'fields': ('description', 'tags', 'cover_image_url', 'page_count')
@@ -77,7 +77,6 @@ class BookAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         """تجاوز وظيفة الحفظ الافتراضية لأتمتة استخراج البيانات المفقودة تلقائياً من مصادر خارجية"""
-        # التحقق من وجود نواقص في الحقول الأساسية قبل استدعاء الـ API لتجنب استهلاك الموارد عبثاً
         if not obj.description or not obj.publisher or not obj.publication_year:
             book_info = None
             source = ""
@@ -184,9 +183,8 @@ class TransactionAdmin(admin.ModelAdmin):
         count = 0
         for t in queryset.filter(status='pending'):
             t.status = 'active'
-            t.save()  # استدعاء الدالة save لتحديث التواريخ وخصم النسخ ضمن models.py
+            t.save()  
             
-            # توليد تنبيه آلي للطالب
             Notification.objects.create(
                 student=t.student,
                 message=f"تمت الموافقة الإدارية على طلب إعارة كتاب '{t.book.title}'. تفضل باستلامه."
@@ -210,7 +208,6 @@ class TransactionAdmin(admin.ModelAdmin):
             t.status = 'rejected'
             t.save()
             
-            # توليد تنبيه آلي للرفض
             Notification.objects.create(
                 student=t.student,
                 message=f"عذراً، تعذر تلبية طلبك لاستعارة كتاب '{t.book.title}' في الوقت الحالي."

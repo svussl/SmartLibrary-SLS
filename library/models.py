@@ -45,12 +45,20 @@ class Book(models.Model):
     title = models.CharField(max_length=200, verbose_name="عنوان الكتاب")
     author = models.CharField(max_length=100, verbose_name="المؤلف")
     
-    # --- الحقول الجديدة ---
+    # --- بيانات النشر والنسخة الرقمية ---
     publisher = models.CharField(max_length=200, blank=True, null=True, verbose_name="الناشر")
     publication_year = models.IntegerField(blank=True, null=True, verbose_name="سنة النشر")
     language = models.CharField(max_length=50, blank=True, null=True, verbose_name="لغة الكتاب")
     book_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='printed', verbose_name="نوع الكتاب")
-    # ---------------------
+    
+    # الحقل الجديد لملف PDF
+    pdf_file = models.FileField(
+        upload_to='books/pdfs/', 
+        blank=True, 
+        null=True, 
+        verbose_name="نسخة PDF للكتاب"
+    )
+    # -----------------------------------
 
     isbn = models.CharField(max_length=13, blank=True, null=True, verbose_name="رقم الإيداع (ISBN)")
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='General', verbose_name="التصنيف")
@@ -87,7 +95,7 @@ class StudentProfile(models.Model):
     MAJOR_CHOICES = [
         ('General', 'سنة تحضيرية / عام'),
         ('CS', 'علم الحاسوب (Computer Science)'),
-        ('SE', 'هندسة برمجيات (Software Engineering)'),
+        ('ICE', 'هندسة معلوماتية (ICE)'),
         ('AI', 'ذكاء اصطناعي (AI)'),
         ('CyberSec', 'أمن سيبراني (Cyber Security)'),
         ('Med', 'طب بشري'),
@@ -97,11 +105,12 @@ class StudentProfile(models.Model):
         ('Civil', 'هندسة مدنية'),
         ('Business', 'إدارة أعمال'),
         ('Law', 'حقوق'),
+        ('Art', 'فنون'),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     student_id = models.CharField(max_length=20, unique=True, verbose_name="الرقم الجامعي")
-    major = models.CharField(max_length=50, choices=MAJOR_CHOICES, default='General', verbose_name="التصنيف")
+    major = models.CharField(max_length=50, choices=MAJOR_CHOICES, default='General', verbose_name="التخصص")
     interest_fingerprint = models.TextField(blank=True, null=True, verbose_name="بصمة الاهتمامات")
 
     def __str__(self):
@@ -109,6 +118,11 @@ class StudentProfile(models.Model):
         if not full_name.strip():
             full_name = self.user.username
         return f"{full_name} ({self.student_id})"
+
+    @property
+    def unread_notifications_count(self):
+        """حساب عدد التنبيهات غير المقروءة لهذا الطالب"""
+        return self.notification_set.filter(is_read=False).count()
 
 
 # ==========================================
@@ -165,7 +179,7 @@ class Transaction(models.Model):
 
 
 # ==========================================
-# 4. التنبيهات (Notifications) - جديد
+# 4. التنبيهات (Notifications)
 # ==========================================
 class Notification(models.Model):
     student = models.ForeignKey(StudentProfile, on_delete=models.CASCADE, verbose_name="الطالب")
@@ -183,7 +197,7 @@ class Notification(models.Model):
 
 
 # ==========================================
-# 5. إدارة المكتبة الواقعية (Physical Library Access) - جديد
+# 5. إدارة المكتبة الواقعية (Physical Library Access)
 # ==========================================
 class PhysicalVisit(models.Model):
     ACTIVITY_CHOICES = [
@@ -199,7 +213,6 @@ class PhysicalVisit(models.Model):
 
     @property
     def stay_duration(self):
-        """حساب مدة البقاء في المكتبة"""
         if self.check_in and self.check_out:
             duration = self.check_out - self.check_in
             total_seconds = int(duration.total_seconds())

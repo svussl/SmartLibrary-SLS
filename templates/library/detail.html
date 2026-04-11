@@ -51,7 +51,17 @@
                             </a>
                         {% else %}
                             <button class="btn btn-secondary btn-lg rounded-pill disabled" disabled>
-                                <i class="bi bi-lock-fill me-2"></i>غير متوفر حالياً
+                                <i class="bi bi-lock-fill me-2"></i>غير متوفر ورقياً
+                            </button>
+                        {% endif %}
+                        
+                        {% if book.pdf_file %}
+                            <a href="{{ book.pdf_file.url }}" class="btn btn-outline-danger btn-lg rounded-pill shadow-sm hover-up mt-2" download>
+                                <i class="bi bi-file-earmark-pdf-fill me-2"></i>تحميل نسخة PDF
+                            </a>
+                        {% else %}
+                            <button onclick="alert('عذراً، لم يتم رفع نسخة PDF لهذا الكتاب بعد.')" class="btn btn-outline-secondary btn-lg rounded-pill shadow-sm mt-2">
+                                <i class="bi bi-file-earmark-pdf me-2"></i>تحميل نسخة PDF
                             </button>
                         {% endif %}
                         
