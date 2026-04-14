@@ -37,9 +37,10 @@ class Book(models.Model):
         ('General', 'ثقافة عامة (General Culture)'),
     ]
 
+    # تم تعديل التسميات لتناسب المنطق الجديد (عادي للإعارة / رقمي للتحميل)
     TYPE_CHOICES = [
-        ('printed', 'كتاب مطبوع (Printed)'),
-        ('ebook', 'كتاب إلكتروني (E-Book)'),
+        ('printed', 'كتاب عادي - متاح للإعارة (Printed)'),
+        ('ebook', 'كتاب رقمي - متاح للتحميل (E-Book/PDF)'),
     ]
 
     title = models.CharField(max_length=200, verbose_name="عنوان الكتاب")
@@ -51,7 +52,6 @@ class Book(models.Model):
     language = models.CharField(max_length=50, blank=True, null=True, verbose_name="لغة الكتاب")
     book_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='printed', verbose_name="نوع الكتاب")
     
-    # الحقل الجديد لملف PDF
     pdf_file = models.FileField(
         upload_to='books/pdfs/', 
         blank=True, 
@@ -121,7 +121,6 @@ class StudentProfile(models.Model):
 
     @property
     def unread_notifications_count(self):
-        """حساب عدد التنبيهات غير المقروءة لهذا الطالب"""
         return self.notification_set.filter(is_read=False).count()
 
 
@@ -144,6 +143,9 @@ class Transaction(models.Model):
     return_date = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الإرجاع")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="حالة الطلب")
     user_rating = models.IntegerField(null=True, blank=True, verbose_name="التقييم (1-5)")
+    
+    # حقل جديد لضمان عدم تكرار إرسال تنبيهات التأخير لنفس العملية
+    overdue_notified = models.BooleanField(default=False, verbose_name="تم إرسال تنبيه التأخير")
 
     def save(self, *args, **kwargs):
         if self.status == 'active':

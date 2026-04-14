@@ -101,29 +101,41 @@
     </div>
 
     <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-4">
-        {% for book in books %}
-        <div class="col">
-            <div class="card h-100 border-0 shadow-sm hover-up rounded-4 overflow-hidden">
-                <div class="position-relative bg-light text-center overflow-hidden" style="height: 280px;">
-                    {% if book.cover_image_url %}
-                        <img src="{{ book.cover_image_url }}" class="w-100 h-100 object-fit-cover transition-transform" alt="{{ book.title }}">
-                    {% else %}
-                        <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-muted">
-                            <i class="bi bi-book fs-1 mb-2 opacity-25"></i>
-                            <span class="small">لا توجد صورة</span>
-                        </div>
-                    {% endif %}
-                    
-                    <span class="position-absolute top-0 start-0 m-3 badge bg-white text-dark shadow-sm rounded-pill fw-normal">
-                        {{ book.get_category_display }}
-                    </span>
+    {% for book in books %}
+    <div class="col">
+        <div class="card h-100 border-0 shadow-sm hover-up rounded-4 overflow-hidden">
+            <div class="position-relative bg-light text-center overflow-hidden" style="height: 280px;">
+                
+                {% if book.cover_image_url %}
+                    <img src="{{ book.cover_image_url }}" class="w-100 h-100 object-fit-cover transition-transform" alt="{{ book.title }}">
+                {% else %}
+                    <div class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-muted">
+                        <i class="bi bi-book fs-1 mb-2 opacity-25"></i>
+                        <span class="small">لا توجد صورة</span>
+                    </div>
+                {% endif %}
+                
+                <span class="position-absolute top-0 start-0 m-3 badge bg-white text-dark shadow-sm rounded-pill fw-normal">
+                    {{ book.get_category_display }}
+                </span>
 
-                    {% if book.match_score %}
-                    <span class="position-absolute bottom-0 end-0 m-3 badge bg-warning text-dark shadow-sm rounded-pill">
-                        <i class="bi bi-lightning-fill me-1"></i>{{ book.match_score|floatformat:0 }}%
+                {% if book.book_type == 'ebook' %}
+                    <span class="position-absolute top-0 end-0 m-3 badge bg-info text-dark shadow-sm rounded-pill fw-normal">
+                        <i class="bi bi-cloud-arrow-down-fill me-1"></i> رقمي
                     </span>
-                    {% endif %}
-                </div>
+                {% else %}
+                    <span class="position-absolute top-0 end-0 m-3 badge bg-light text-dark border shadow-sm rounded-pill fw-normal">
+                        <i class="bi bi-book-half me-1"></i> مطبوع
+                    </span>
+                {% endif %}
+
+                {% if book.match_score %}
+                <span class="position-absolute bottom-0 end-0 m-3 badge bg-warning text-dark shadow-sm rounded-pill">
+                    <i class="bi bi-lightning-fill me-1"></i>{{ book.match_score|floatformat:0 }}%
+                </span>
+                {% endif %}
+                
+            </div>
 
                 <div class="card-body p-4">
                     <h6 class="fw-bold mb-1 text-truncate" title="{{ book.title }}">{{ book.title }}</h6>
