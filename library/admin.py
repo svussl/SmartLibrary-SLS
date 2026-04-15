@@ -7,6 +7,10 @@ from .models import Book, StudentProfile, Transaction, SearchLog, Notification, 
 from .ai_engine import SmartLibraryAI
 import requests
 
+# استدعاء مكتبات الاستيراد والتصدير
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
+
 # ==========================================
 # إعدادات العرض العامة لمركز الإدارة
 # ==========================================
@@ -31,12 +35,27 @@ def update_embeddings(modeladmin, request, queryset):
     modeladmin.message_user(request, f"تم بنجاح تحديث وتوليد البصمة الدلالية لعدد {count} كتاب.")
 
 # ==========================================
-# 1. إدارة محتوى الكتب (BookAdmin) مع الأتمتة
+# 1. إدارة محتوى الكتب (BookAdmin) مع ميزة الاستيراد والأتمتة
 # ==========================================
+class BookResource(resources.ModelResource):
+    """
+    كلاس وسيط لمعالجة ملف الإكسل الخاص بالكتب قبل إدخاله لقاعدة البيانات.
+    يحدد الحقول المطلوبة ويمنع تكرار الكتب بناءً على رقم الإيداع (ISBN).
+    """
+    class Meta:
+        model = Book
+        import_id_fields = ('isbn',) # نعتمد ISBN كمعرف أساسي لمنع التكرار
+        # نحدد الحقول التي يمكن قراءتها من ملف الإكسل
+        fields = (
+            'title', 'author', 'isbn', 'publisher', 'publication_year', 
+            'language', 'category', 'book_type', 'description', 
+            'page_count', 'total_copies', 'available_copies', 'tags'
+        )
+
 @admin.register(Book)
-class BookAdmin(admin.ModelAdmin):
+class BookAdmin(ImportExportModelAdmin):
+    resource_class = BookResource
     list_display = ('title', 'author', 'category', 'book_type', 'language', 'total_copies', 'available_copies')
-    # حقول البحث الموسعة لضمان عمل واجهة الإكمال التلقائي (Autocomplete) بفعالية
     search_fields = ('title', 'author', 'isbn', 'publisher') 
     list_filter = ('category', 'book_type', 'language', 'created_at')
     readonly_fields = ('created_at', 'embedding')
@@ -81,26 +100,22 @@ class BookAdmin(admin.ModelAdmin):
             book_info = None
             source = ""
 
-            # المحاولة الأولى: عبر الرقم المعياري الدولي للكتاب (ISBN)
             if obj.isbn:
                 clean_isbn = obj.isbn.replace("-", "").replace(" ", "")
                 book_info = self.fetch_book_data(f"isbn:{clean_isbn}")
                 source = "رقم الإيداع (ISBN)"
 
-            # المحاولة الثانية: عبر العنوان (في حال فشل البحث بالرقم المعياري)
             if (not book_info or not book_info.get("description")) and obj.title:
                 alt_info = self.fetch_book_data(f"intitle:{obj.title}")
                 if alt_info and alt_info.get("description"):
                     book_info = alt_info
                     source = "عنوان الكتاب"
 
-            # تطبيق البيانات المستخرجة على النموذج الوظيفي
             if book_info:
                 if not obj.description and book_info.get("description"):
                     obj.description = book_info.get("description")
                     messages.success(request, f"✅ تمت أتمتة جلب الوصف التفصيلي باستخدام {source}.")
                 
-                # جلب وتعيين بيانات الناشر وسنة النشر إن توفرت
                 if not obj.publisher and book_info.get("publisher"):
                     obj.publisher = book_info.get("publisher")
                     
@@ -127,7 +142,6 @@ class BookAdmin(admin.ModelAdmin):
 
         super().save_model(request, obj, form, change)
         
-        # التحديث الآلي لنموذج التضمين (Embedding) الخاص بالذكاء الاصطناعي
         if not obj.embedding:
             try:
                 ai = SmartLibraryAI()
@@ -136,10 +150,43 @@ class BookAdmin(admin.ModelAdmin):
                 pass
 
 # ==========================================
-# 2. إدارة ملفات الطلاب (StudentProfileAdmin)
+# 2. إدارة ملفات الطلاب (StudentProfileAdmin) مع ميزة الاستيراد
 # ==========================================
+class StudentProfileResource(resources.ModelResource):
+    """
+    كلاس وسيط لمعالجة ملف الإكسل قبل إدخاله لقاعدة البيانات.
+    يقوم بإنشاء حساب المستخدم (User) أولاً، ثم يربطه بملف الطالب.
+    """
+    class Meta:
+        model = StudentProfile
+        import_id_fields = ('student_id',)
+        fields = ('student_id', 'major')
+
+    def before_import_row(self, row, **kwargs):
+        student_id = str(row.get('student_id', '')).strip()
+        email = str(row.get('email', '')).strip()
+        first_name = str(row.get('first_name', '')).strip()
+        last_name = str(row.get('last_name', '')).strip()
+
+        from django.contrib.auth.models import User
+        user, created = User.objects.get_or_create(
+            username=student_id,
+            defaults={
+                'email': email,
+                'first_name': first_name,
+                'last_name': last_name,
+            }
+        )
+        
+        if created:
+            user.set_password(f"Svu@{student_id}")
+            user.save()
+            
+        row['user'] = user.id
+
 @admin.register(StudentProfile)
-class StudentProfileAdmin(admin.ModelAdmin):
+class StudentProfileAdmin(ImportExportModelAdmin):
+    resource_class = StudentProfileResource
     list_display = ('get_full_name', 'student_id', 'major', 'get_email')
     search_fields = ('student_id', 'user__first_name', 'user__last_name', 'user__username', 'user__email')
     list_filter = ('major',)

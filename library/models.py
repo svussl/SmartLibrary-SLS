@@ -93,12 +93,8 @@ class Book(models.Model):
 # ==========================================
 class StudentProfile(models.Model):
     MAJOR_CHOICES = [
-        ('General', 'سنة تحضيرية / عام'),
-        ('CS', 'علم الحاسوب (Computer Science)'),
         ('ICE', 'هندسة معلوماتية (ICE)'),
-        ('AI', 'ذكاء اصطناعي (AI)'),
-        ('CyberSec', 'أمن سيبراني (Cyber Security)'),
-        ('Med', 'طب بشري'),
+        ('Staff', 'موظفين'),
         ('Dent', 'طب أسنان'),
         ('Pharm', 'صيدلة'),
         ('Arch', 'هندسة معمارية'),
@@ -122,6 +118,17 @@ class StudentProfile(models.Model):
     @property
     def unread_notifications_count(self):
         return self.notification_set.filter(is_read=False).count()
+
+    def save(self, *args, **kwargs):
+        """
+        تجاوز دالة الحفظ لإنشاء بصمة اهتمامات مبدئية للذكاء الاصطناعي
+        بشكل تلقائي عند إضافة طالب جديد لا يملك بصمة.
+        """
+        if not self.interest_fingerprint:
+            major_name = self.get_major_display()
+            self.interest_fingerprint = f"طالب جامعي يدرس في تخصص {major_name}. يهتم بالمراجع الأكاديمية والكتب المتعلقة بمجال {major_name}."
+        
+        super().save(*args, **kwargs)
 
 
 # ==========================================
