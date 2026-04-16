@@ -21,55 +21,96 @@
                 {% if user.studentprofile %}
                     <div class="mt-3 pt-3 border-top">
                         <span class="badge bg-light text-dark border rounded-pill px-3 py-2">
-                            {{ user.studentprofile.major }}
+                            {{ user.studentprofile.get_major_display }}
                         </span>
-                        <div class="small text-muted mt-2">ID: {{ user.studentprofile.student_id }}</div>
+                        <div class="small text-muted mt-2">الرقم الجامعي: <span class="fw-bold">{{ user.studentprofile.student_id }}</span></div>
                     </div>
                 {% endif %}
             </div>
+            
+            {% if interest_cloud %}
+            <div class="card border-0 shadow-sm rounded-4 mt-4 p-4">
+                <h6 class="fw-bold mb-3"><i class="bi bi-cloud-tags me-2 text-primary"></i>سحابة الاهتمامات</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for tag in interest_cloud %}
+                        <span class="badge bg-light text-secondary border">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <div class="col-md-8">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                <div class="card-header bg-white py-3 border-0">
-                    <h5 class="fw-bold mb-0"><i class="bi bi-journal-bookmark-fill me-2 text-primary"></i>سجل الإعارات والنشاط</h5>
+            
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
+                    <h5 class="fw-bold"><i class="bi bi-bell-fill text-warning me-2"></i> أحدث التنبيهات</h5>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body p-4">
+                    {% if notifications %}
+                        <div class="list-group list-group-flush">
+                            {% for note in notifications %}
+                                <div class="list-group-item px-0 py-3 border-bottom {% if not note.is_read %}bg-light rounded-3 px-3{% endif %}">
+                                    <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                                        <h6 class="mb-0 fw-bold {% if not note.is_read %}text-primary{% else %}text-dark{% endif %}">
+                                            إشعار نظام
+                                        </h6>
+                                        <small class="text-muted" dir="ltr">{{ note.created_at|date:"Y-m-d H:i" }}</small>
+                                    </div>
+                                    <p class="mb-1 small text-muted">{{ note.message }}</p>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-bell-slash fs-3 opacity-50 mb-2 d-block"></i>
+                            <small>لا توجد تنبيهات جديدة.</small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
+                    <h5 class="fw-bold"><i class="bi bi-journal-text text-primary me-2"></i>سجل الإعارات والطلبات</h5>
+                </div>
+                <div class="card-body p-4">
                     {% if transactions %}
                         <div class="table-responsive">
-                            <table class="table table-hover mb-0 align-middle">
-                                <thead class="table-light">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light text-muted small">
                                     <tr>
-                                        <th class="ps-4">الكتاب</th>
+                                        <th>الكتاب</th>
                                         <th>تاريخ الطلب</th>
+                                        <th>تاريخ الإرجاع المتوقع</th>
                                         <th>الحالة</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for trans in transactions %}
                                     <tr>
-                                        <td class="ps-4">
-                                            <div class="d-flex align-items-center">
-                                                <div class="bg-light rounded p-2 me-3 text-primary">
-                                                    <i class="bi bi-book"></i>
-                                                </div>
-                                                <div>
-                                                    <a href="{% url 'library:book_detail' trans.book.id %}" class="fw-bold text-decoration-none text-dark">
-                                                        {{ trans.book.title }}
-                                                    </a>
-                                                </div>
-                                            </div>
+                                        <td class="fw-bold">
+                                            <a href="{% url 'library:book_detail' trans.book.id %}" class="text-decoration-none text-dark">
+                                                {{ trans.book.title }}
+                                            </a>
                                         </td>
-                                        <td class="text-muted small">
-                                            {{ trans.request_date|date:"Y-m-d" }}
+                                        <td><small class="text-muted">{{ trans.request_date|date:"Y-m-d" }}</small></td>
+                                        <td>
+                                            {% if trans.due_date %}
+                                                <small class="text-muted">{{ trans.due_date|date:"Y-m-d" }}</small>
+                                            {% else %}
+                                                <small class="text-muted">-</small>
+                                            {% endif %}
                                         </td>
                                         <td>
                                             {% if trans.status == 'returned' %}
-                                                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">تم الإرجاع</span>
+                                                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3">مُرجعة</span>
                                             {% elif trans.status == 'active' %}
                                                 <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3">جارية</span>
                                             {% elif trans.status == 'pending' %}
                                                 <span class="badge bg-warning bg-opacity-10 text-warning rounded-pill px-3">انتظار</span>
+                                            {% elif trans.status == 'rejected' %}
+                                                <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-3">مرفوض</span>
                                             {% else %}
                                                 <span class="badge bg-secondary rounded-pill px-3">{{ trans.get_status_display }}</span>
                                             {% endif %}
@@ -82,15 +123,16 @@
                     {% else %}
                         <div class="text-center py-5">
                             <div class="mb-3 text-muted opacity-25">
-                                <i class="bi bi-inbox fs-1"></i>
+                                <i class=\"bi bi-inbox fs-1\"></i>
                             </div>
                             <h5>لا يوجد سجل إعارات حتى الآن</h5>
-                            <p class="text-muted small mb-3">بما أنك قمت بتصحيح الحساب الآن، جرب استعارة كتاب جديد.</p>
+                            <p class="text-muted small mb-3">ابدأ بتصفح المكتبة واستعارة كتبك المفضلة.</p>
                             <a href="{% url 'library:home' %}" class="btn btn-primary rounded-pill btn-sm">تصفح الكتب</a>
                         </div>
                     {% endif %}
                 </div>
             </div>
+            
         </div>
     </div>
 </div>

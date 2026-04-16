@@ -22,6 +22,24 @@
                             </select>
                         </div>
                         
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">نوع الكتاب</label>
+                            <select name="book_type" class="form-select border-0 bg-light rounded-3" onchange="this.form.submit()">
+                                <option value="">الكل</option>
+                                <option value="printed" {% if current_book_type == 'printed' %}selected{% endif %}>كتاب مطبوع</option>
+                                <option value="ebook" {% if current_book_type == 'ebook' %}selected{% endif %}>كتاب إلكتروني</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-muted text-uppercase">لغة الكتاب</label>
+                            <select name="language" class="form-select border-0 bg-light rounded-3" onchange="this.form.submit()">
+                                <option value="">الكل</option>
+                                <option value="العربية" {% if current_language == 'العربية' %}selected{% endif %}>العربية</option>
+                                <option value="English" {% if current_language == 'English' %}selected{% endif %}>English</option>
+                            </select>
+                        </div>
+                        
                         <div class="text-muted small mt-4">
                             <i class="bi bi-info-circle me-1"></i>
                             يتم ترتيب النتائج ذكياً بناءً على فهم المعنى السياقي لبحثك.
@@ -70,7 +88,7 @@
                                                 </a>
                                             </h5>
                                             <p class="card-text text-muted small mb-2"><i class="bi bi-person me-1"></i>{{ book.author }}</p>
-                                            <p class="card-text text-muted small text-truncate-2">
+                                            <p class="card-text text-muted small text-truncate-2 mb-2">
                                                 {{ book.description|default:"لا يوجد وصف متاح لهذا الكتاب."|truncatewords:25 }}
                                             </p>
                                         </div>
@@ -89,13 +107,29 @@
                                         {% endif %}
                                     </div>
                                     
-                                    <div class="mt-auto d-flex align-items-center justify-content-between">
-                                        <div class="d-flex gap-3">
+                                    <div class="mt-auto border-top pt-2 mt-2">
+                                        <div class="d-flex flex-wrap gap-3 align-items-center">
                                             <small class="text-muted"><i class="bi bi-layers me-1"></i>{{ book.available_copies }} نسخة متاحة</small>
                                             <small class="text-muted"><i class="bi bi-file-earmark-text me-1"></i>{{ book.page_count }} صفحة</small>
+                                            
+                                            <small class="text-muted"><i class="bi bi-journal-bookmark me-1"></i>{{ book.get_book_type_display }}</small>
+                                            
+                                            {% if book.language %}
+                                                <small class="text-muted"><i class="bi bi-translate me-1"></i>{{ book.language }}</small>
+                                            {% endif %}
+                                            
+                                            {% if book.publication_year %}
+                                                <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>{{ book.publication_year }}</small>
+                                            {% endif %}
+                                            
+                                            {% if book.publisher %}
+                                                <small class="text-muted"><i class="bi bi-building me-1"></i>{{ book.publisher }}</small>
+                                            {% endif %}
+                                            
+                                            <i class="bi bi-arrow-left text-primary opacity-50 ms-auto"></i>
                                         </div>
-                                        <i class="bi bi-arrow-left text-primary opacity-50"></i>
                                     </div>
+                                    
                                 </div>
                             </div>
                         </div>
@@ -134,7 +168,6 @@
         overflow: hidden;
     }
     .object-fit-cover { object-fit: cover; }
-    /* تنسيق إضافي لقسم مدة القراءة */
     .bi-clock-history {
         vertical-align: middle;
         margin-bottom: 2px;

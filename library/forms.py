@@ -22,7 +22,7 @@ class UserRegistrationForm(forms.ModelForm):
             raise forms.ValidationError("كلمات المرور غير متطابقة")
         return cleaned_data
 
-# 2. نموذج تسجيل الدخول المخصص (جديد)
+# 2. نموذج تسجيل الدخول المخصص
 class StudentLoginForm(AuthenticationForm):
     username = forms.CharField(
         label="الرقم الجامعي / اسم المستخدم",
