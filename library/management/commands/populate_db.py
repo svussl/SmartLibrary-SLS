@@ -60,9 +60,9 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'✅ تم إنشاء {len(students)} طالب بنجاح.'))
 
         # ==========================
-        # 4. تجميع وإنشاء 400 كتاب (مع الحقول الجديدة)
+        # 4. تجميع وإنشاء 400 كتاب (مع فرز رقمي/ورقي)
         # ==========================
-        self.stdout.write('📚 جاري إنشاء 400 كتاب تغطي كافة التخصصات (مع الناشر والسنة)...')
+        self.stdout.write('📚 جاري إنشاء 400 كتاب وتوزيعها (70% مطبوع، 30% رقمي)...')
         
         base_books_data = [
             {"title": "Clean Code", "cat": "Programming"}, {"title": "Deep Learning", "cat": "AI"},
@@ -89,30 +89,36 @@ class Command(BaseCommand):
             "Introduction to Applied {cat}", "{cat} for Beginners", "Research Methods in {cat}"
         ]
 
-        # قوائم الخيارات للحقول الجديدة
         publishers = ['دار النشر الجامعية', 'O\'Reilly', 'Springer', 'Pearson', 'McGraw-Hill', 'دار المعرفة', 'مكتبة العبيكان']
         languages = ['العربية', 'English']
-        book_types = ['printed', 'ebook']
+        
+        # الأوزان: 70% كتاب ورقي، 30% رقمي
+        book_types_weights = ['printed', 'printed', 'printed', 'printed', 'printed', 'printed', 'printed', 'ebook', 'ebook', 'ebook']
 
         created_books = []
         
         # إنشاء الكتب الأساسية
         for b in base_books_data:
             fake_isbn = f"978{random.randint(1000000000, 9999999999)}"
+            b_type = random.choice(book_types_weights)
+            
+            # إذا كان رقمي، نجعل النسخ المتاحة كبيرة جداً
+            av_copies = 999 if b_type == 'ebook' else random.randint(1, 5)
+            t_copies = 999 if b_type == 'ebook' else random.randint(3, 8)
+
             book = Book.objects.create(
                 title=b['title'],
                 author="Expert Author",
                 category=b['cat'],
                 isbn=fake_isbn,
                 description=f"كتاب متخصص في مجال {b['cat']}",
-                total_copies=random.randint(3, 8),
-                available_copies=random.randint(1, 5),
+                total_copies=t_copies,
+                available_copies=av_copies,
                 tags=f"{b['cat']}, Academic",
-                # إضافات جديدة
                 publisher=random.choice(publishers),
                 publication_year=random.randint(2000, 2026),
                 language=random.choice(languages),
-                book_type=random.choice(book_types)
+                book_type=b_type
             )
             created_books.append(book)
 
@@ -122,30 +128,33 @@ class Command(BaseCommand):
             cat = random.choice(categories)
             title = random.choice(templates).format(cat=cat, vol=random.randint(1, 10))
             fake_isbn = f"978{random.randint(1000000000, 9999999999)}"
-            
+            b_type = random.choice(book_types_weights)
+
+            av_copies = 999 if b_type == 'ebook' else random.randint(1, 4)
+            t_copies = 999 if b_type == 'ebook' else random.randint(2, 6)
+
             book = Book.objects.create(
                 title=title,
                 author=f"Author {random.randint(100, 999)}",
                 category=cat,
                 isbn=fake_isbn,
                 description=f"كتاب أكاديمي شامل يغطي جوانب {cat}.",
-                total_copies=random.randint(2, 6),
-                available_copies=random.randint(1, 4),
+                total_copies=t_copies,
+                available_copies=av_copies,
                 tags=f"{cat}, Reference",
-                # إضافات جديدة
                 publisher=random.choice(publishers),
                 publication_year=random.randint(1995, 2026),
                 language=random.choice(languages),
-                book_type=random.choice(book_types)
+                book_type=b_type
             )
             created_books.append(book)
 
         self.stdout.write(self.style.SUCCESS(f'✅ تم إنشاء {len(created_books)} كتاب بنجاح.'))
 
         # ==========================
-        # 5. إنشاء الإعارات والتنبيهات
+        # 5. إنشاء الإعارات (للكتب المطبوعة فقط) والتنبيهات
         # ==========================
-        self.stdout.write('🔄 جاري إنشاء 100 إعارة وتنبيهات مرافقة...')
+        self.stdout.write('🔄 جاري إنشاء 100 عملية إعارة وتنبيهات...')
         
         MAJOR_GROUPS = {
             'IT': ["Programming", "AI", "CyberSecurity", "Networking"],
@@ -162,12 +171,15 @@ class Command(BaseCommand):
 
         statuses = ['active', 'returned', 'pending', 'returned', 'active', 'rejected']
         
+        # فلترة الكتب الورقية فقط لعمليات الإعارة
+        printed_books = [b for b in created_books if b.book_type == 'printed']
+
         for _ in range(100): 
             student = random.choice(students)
             student_core_cats = student_focus[student.id]
             
-            candidate_books = [b for b in created_books if b.category in student_core_cats] if random.random() < 0.80 else [b for b in created_books if b.category not in student_core_cats]
-            candidate_books = candidate_books or created_books
+            candidate_books = [b for b in printed_books if b.category in student_core_cats] if random.random() < 0.80 else [b for b in printed_books if b.category not in student_core_cats]
+            candidate_books = candidate_books or printed_books
             book = random.choice(candidate_books)
             status = random.choice(statuses)
             
@@ -198,7 +210,6 @@ class Command(BaseCommand):
         
         for _ in range(200):
             student = random.choice(students)
-            # 15% من الزيارات نتركها نشطة (بدون Check-out) لكي تظهر في المتواجدين حالياً
             is_active_now = random.random() < 0.15 
             
             if is_active_now:
@@ -206,11 +217,9 @@ class Command(BaseCommand):
                 check_out = None
             else:
                 days_ago = random.randint(1, 30)
-                # توليد أوقات ذروة منطقية (بين الساعة 8 صباحاً و 4 عصراً)
                 hour_of_day = random.randint(8, 16) 
                 check_in = timezone.now() - timedelta(days=days_ago)
                 check_in = check_in.replace(hour=hour_of_day, minute=random.randint(0, 59))
-                # مدة البقاء بين 30 دقيقة و 4 ساعات
                 check_out = check_in + timedelta(minutes=random.randint(30, 240))
 
             PhysicalVisit.objects.create(

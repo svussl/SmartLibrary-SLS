@@ -56,86 +56,72 @@
             </div>
 
             {% if books %}
-                <div class="d-flex flex-column gap-3">
-                    {% for book in books %}
-                    <div class="card border-0 shadow-sm hover-shadow transition-all overflow-hidden position-relative">
-                        <div class="row g-0">
-                            <div class="col-md-2 bg-light">
-                                {% if book.cover_image_url %}
-                                    <img src="{{ book.cover_image_url }}" class="w-100 h-100 object-fit-cover" alt="{{ book.title }}" style="min-height: 180px;">
-                                {% else %}
-                                    <div class="w-100 h-100 d-flex align-items-center justify-content-center text-muted" style="min-height: 180px;">
-                                        <i class="bi bi-book fs-1 opacity-25"></i>
-                                    </div>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="col-md-10">
-                                <div class="card-body h-100 d-flex flex-column py-3">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex align-items-center gap-2 mb-2">
-                                                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill small">{{ book.get_category_display }}</span>
-                                                <span class="text-muted small border-start ps-2">
-                                                    <i class="bi bi-clock-history me-1 text-secondary"></i>
-                                                    {{ book.reading_time }}
-                                                </span>
-                                            </div>
-
-                                            <h5 class="card-title fw-bold mb-1">
-                                                <a href="{% url 'library:book_detail' book.id %}" class="text-decoration-none text-dark stretched-link">
-                                                    {{ book.title }}
-                                                </a>
-                                            </h5>
-                                            <p class="card-text text-muted small mb-2"><i class="bi bi-person me-1"></i>{{ book.author }}</p>
-                                            <p class="card-text text-muted small text-truncate-2 mb-2">
-                                                {{ book.description|default:"لا يوجد وصف متاح لهذا الكتاب."|truncatewords:25 }}
-                                            </p>
-                                        </div>
-                                        
-                                        {% if book.match_score %}
-                                        <div class="text-center ms-3 d-none d-sm-block" style="z-index: 5;">
-                                            <div class="position-relative d-inline-flex align-items-center justify-content-center">
-                                                <svg width="60" height="60" viewBox="0 0 36 36">
-                                                    <path class="text-light" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="2.5" />
-                                                    <path class="text-success" stroke-dasharray="{{ book.match_score }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-                                                </svg>
-                                                <span class="position-absolute fw-bold text-success small">{{ book.match_score|floatformat:0 }}%</span>
-                                            </div>
-                                            <div class="small fw-bold text-muted mt-1" style="font-size: 0.65rem;">مطابقة </div>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    
-                                    <div class="mt-auto border-top pt-2 mt-2">
-                                        <div class="d-flex flex-wrap gap-3 align-items-center">
-                                            <small class="text-muted"><i class="bi bi-layers me-1"></i>{{ book.available_copies }} نسخة متاحة</small>
-                                            <small class="text-muted"><i class="bi bi-file-earmark-text me-1"></i>{{ book.page_count }} صفحة</small>
-                                            
-                                            <small class="text-muted"><i class="bi bi-journal-bookmark me-1"></i>{{ book.get_book_type_display }}</small>
-                                            
-                                            {% if book.language %}
-                                                <small class="text-muted"><i class="bi bi-translate me-1"></i>{{ book.language }}</small>
-                                            {% endif %}
-                                            
-                                            {% if book.publication_year %}
-                                                <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>{{ book.publication_year }}</small>
-                                            {% endif %}
-                                            
-                                            {% if book.publisher %}
-                                                <small class="text-muted"><i class="bi bi-building me-1"></i>{{ book.publisher }}</small>
-                                            {% endif %}
-                                            
-                                            <i class="bi bi-arrow-left text-primary opacity-50 ms-auto"></i>
-                                        </div>
-                                    </div>
-                                    
-                                </div>
-                            </div>
-                        </div>
+<div class="d-flex flex-column gap-3">
+    {% for book in books %}
+    <div class="card border-0 shadow-sm hover-shadow transition-all overflow-hidden position-relative">
+        <div class="row g-0">
+            <div class="col-md-2 bg-light position-relative">
+                {% if book.cover_image_url %}
+                    <img src="{{ book.cover_image_url }}" class="w-100 h-100 object-fit-cover" alt="{{ book.title }}" style="min-height: 180px;">
+                {% else %}
+                    <div class="w-100 h-100 d-flex align-items-center justify-content-center text-muted" style="min-height: 180px;">
+                        <i class="bi bi-book fs-1 opacity-25"></i>
                     </div>
-                    {% endfor %}
+                {% endif %}
+                
+                {% if book.book_type == 'ebook' %}
+                    <span class="position-absolute top-0 end-0 m-2 badge bg-info text-dark shadow-sm rounded-pill" style="font-size: 0.75rem;">
+                        <i class="bi bi-cloud-arrow-down-fill me-1"></i> رقمي
+                    </span>
+                {% else %}
+                    <span class="position-absolute top-0 end-0 m-2 badge bg-light text-dark border shadow-sm rounded-pill" style="font-size: 0.75rem;">
+                        <i class="bi bi-book-half me-1"></i> مطبوع
+                    </span>
+                {% endif %}
                 </div>
+            
+            <div class="col-md-10">
+                <div class="card-body h-100 d-flex flex-column py-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill small">{{ book.get_category_display }}</span>
+                                <span class="text-muted small border-start ps-2">
+                                    <i class="bi bi-clock-history me-1 text-secondary"></i>
+                                    {{ book.reading_time }}
+                                </span>
+                            </div>
+
+                            <h5 class="card-title fw-bold mb-1">
+                                <a href="{% url 'library:book_detail' book.id %}" class="text-decoration-none text-dark stretched-link">
+                                    {{ book.title }}
+                                </a>
+                            </h5>
+                            <p class="card-text text-muted small mb-2"><i class="bi bi-person me-1"></i>{{ book.author }}</p>
+                            <p class="card-text text-muted small text-truncate-2 mb-2">
+                                {{ book.description|default:"لا يوجد وصف متاح لهذا الكتاب."|truncatewords:25 }}
+                            </p>
+                        </div>
+                        
+                        {% if book.match_score %}
+                        <div class="text-center ms-3 d-none d-sm-block" style="z-index: 5;">
+                            <div class="position-relative d-inline-flex align-items-center justify-content-center">
+                                <svg width="60" height="60" viewBox="0 0 36 36">
+                                    <path class="text-light" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="2.5" />
+                                    <path class="text-success" stroke-dasharray="{{ book.match_score }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                                </svg>
+                                <span class="position-absolute fw-bold text-success small">{{ book.match_score|floatformat:0 }}%</span>
+                            </div>
+                            <div class="small fw-bold text-muted mt-1" style="font-size: 0.65rem;">مطابقة </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
             {% else %}
                 <div class="text-center py-5 card border-0 shadow-sm rounded-4">
                     <div class="mb-3">

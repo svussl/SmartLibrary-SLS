@@ -21,6 +21,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
+    # مكتبات خارجية مضافة
+    'import_export',  # ميزة استيراد وتصدير ملفات الإكسل
+    
     # تطبيق المكتبة الذكي
     'library',
 ]
@@ -84,7 +87,7 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 # إعداد الحقول التلقائية
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# إعدادات الوسائط (لصور أغلفة الكتب مثلاً)
+# إعدادات الوسائط (لصور أغلفة الكتب وملفات الـ PDF)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -108,3 +111,6 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1:8000',
 ]
+
+# إعدادات إضافية لمكتبة الاستيراد والتصدير
+IMPORT_EXPORT_USE_TRANSACTIONS = True  # ضمان تراجع قاعدة البيانات في حال حدوث خطأ أثناء الاستيراد
