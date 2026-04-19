@@ -1,5 +1,5 @@
 # ==========================================
-# ملف admin.py المحدث
+# ملف admin.py النهائي الشامل
 # ==========================================
 from django.contrib import admin
 from django.contrib import messages
@@ -23,10 +23,6 @@ admin.site.index_title = "لوحة تحكم المشرف العام"
 # ==========================================
 @admin.action(description='⚡ تحديث البصمة الدلالية للذكاء الاصطناعي (Embeddings)')
 def update_embeddings(modeladmin, request, queryset):
-    """
-    إجراء وظيفي مخصص لتوليد أو تحديث البصمة الرقمية للكتب يدوياً في حال لم تتم العملية تلقائياً.
-    يتم استدعاء نموذج معالجة اللغات الطبيعية (NLP) لحساب المتجهات.
-    """
     ai = SmartLibraryAI()
     count = 0
     for book in queryset:
@@ -35,17 +31,12 @@ def update_embeddings(modeladmin, request, queryset):
     modeladmin.message_user(request, f"تم بنجاح تحديث وتوليد البصمة الدلالية لعدد {count} كتاب.")
 
 # ==========================================
-# 1. إدارة محتوى الكتب (BookAdmin) مع ميزة الاستيراد والأتمتة
+# 1. إدارة محتوى الكتب (BookAdmin) مع الأتمتة والاستيراد
 # ==========================================
 class BookResource(resources.ModelResource):
-    """
-    كلاس وسيط لمعالجة ملف الإكسل الخاص بالكتب قبل إدخاله لقاعدة البيانات.
-    يحدد الحقول المطلوبة ويمنع تكرار الكتب بناءً على رقم الإيداع (ISBN).
-    """
     class Meta:
         model = Book
-        import_id_fields = ('isbn',) # نعتمد ISBN كمعرف أساسي لمنع التكرار
-        # نحدد الحقول التي يمكن قراءتها من ملف الإكسل
+        import_id_fields = ('isbn',)
         fields = (
             'title', 'author', 'isbn', 'publisher', 'publication_year', 
             'language', 'category', 'book_type', 'description', 
@@ -82,7 +73,6 @@ class BookAdmin(ImportExportModelAdmin):
     actions = [update_embeddings]
 
     def fetch_book_data(self, query):
-        """دالة مساعدة لمعالجة طلبات الاتصال بواجهة برمجة تطبيقات Google Books"""
         try:
             api_url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults=1"
             response = requests.get(api_url, timeout=5)
@@ -95,7 +85,6 @@ class BookAdmin(ImportExportModelAdmin):
         return None
 
     def save_model(self, request, obj, form, change):
-        """تجاوز وظيفة الحفظ الافتراضية لأتمتة استخراج البيانات المفقودة تلقائياً من مصادر خارجية"""
         if not obj.description or not obj.publisher or not obj.publication_year:
             book_info = None
             source = ""
@@ -150,13 +139,9 @@ class BookAdmin(ImportExportModelAdmin):
                 pass
 
 # ==========================================
-# 2. إدارة ملفات الطلاب (StudentProfileAdmin) مع ميزة الاستيراد
+# 2. إدارة ملفات الطلاب (StudentProfileAdmin)
 # ==========================================
 class StudentProfileResource(resources.ModelResource):
-    """
-    كلاس وسيط لمعالجة ملف الإكسل قبل إدخاله لقاعدة البيانات.
-    يقوم بإنشاء حساب المستخدم (User) أولاً، ثم يربطه بملف الطالب.
-    """
     class Meta:
         model = StudentProfile
         import_id_fields = ('student_id',)
@@ -201,7 +186,7 @@ class StudentProfileAdmin(ImportExportModelAdmin):
 # 3. إدارة العمليات والإعارات (TransactionAdmin)
 # ==========================================
 @admin.register(Transaction)
-class TransactionAdmin(admin.ModelAdmin):
+class TransactionAdmin(ImportExportModelAdmin):
     list_display = ('book', 'student', 'status', 'borrow_date', 'due_date', 'is_overdue')
     list_filter = ('status', 'request_date')
     search_fields = ('book__title', 'student__student_id', 'student__user__username')
@@ -266,7 +251,7 @@ class TransactionAdmin(admin.ModelAdmin):
 # 4. سجلات تحليل الفجوة (Gap Analysis)
 # ==========================================
 @admin.register(SearchLog)
-class SearchLogAdmin(admin.ModelAdmin):
+class SearchLogAdmin(ImportExportModelAdmin):
     list_display = ('query_text', 'user', 'result_count', 'timestamp')
     search_fields = ('query_text',)
     list_filter = ('timestamp',)
@@ -275,7 +260,7 @@ class SearchLogAdmin(admin.ModelAdmin):
 # 5. إدارة نظام التنبيهات (NotificationAdmin)
 # ==========================================
 @admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
+class NotificationAdmin(ImportExportModelAdmin):
     list_display = ('student', 'message_snippet', 'is_read', 'created_at')
     list_filter = ('is_read', 'created_at')
     search_fields = ('student__student_id', 'student__user__username', 'message')
@@ -289,9 +274,18 @@ class NotificationAdmin(admin.ModelAdmin):
 # 6. سجلات التواجد المادي (PhysicalVisitAdmin)
 # ==========================================
 @admin.register(PhysicalVisit)
-class PhysicalVisitAdmin(admin.ModelAdmin):
-    list_display = ('student', 'activity', 'check_in', 'check_out', 'stay_duration')
+class PhysicalVisitAdmin(ImportExportModelAdmin):
+    # أضفنا الدالة الجديدة (get_student_major) إلى قائمة العرض هنا
+    list_display = ('student', 'get_student_major', 'activity', 'check_in', 'check_out', 'stay_duration')
     list_filter = ('activity', 'check_in')
     search_fields = ('student__student_id', 'student__user__username', 'student__user__first_name')
     autocomplete_fields = ['student']
     readonly_fields = ('stay_duration',)
+
+    # --- الدالة الجديدة ---
+    def get_student_major(self, obj):
+        # نستخدم get_major_display() لجلب الاسم العربي الواضح (مثل: هندسة معلوماتية) بدلاً من الرمز البرمجي (ICE)
+        return obj.student.get_major_display()
+        
+    # لتغيير عنوان العمود في لوحة الإدارة
+    get_student_major.short_description = 'التخصص'
